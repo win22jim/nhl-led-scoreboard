@@ -38,7 +38,8 @@ class Series:
             This is off from the nhl record api. Not sure if it will update as soon as the day is over.
         """
         try:
-            series_info = client.get_series_record(series["seriesLetter"], data.status.season_id)
+            #series_info = client.get_series_record(series["seriesLetter"], data.status.season_id)
+            series_info = client._request(f"https://api-web.nhle.com/v1/schedule/playoff-series/{data.status.season_id}/{series['seriesLetter'].lower()}"); series_info["topSeed"], series_info["bottomSeed"], series_info["total"] = series_info["topSeedTeam"], series_info["bottomSeedTeam"], len(series_info.get("games", []))
             if series_info["total"] == 0:
                 debug.info("No series, playoffs not running?")
                 raise Exception("No series information")
