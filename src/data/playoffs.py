@@ -32,6 +32,7 @@ class Series:
     def __init__(self, series, data):
 
         """
+            This no longer uses the nhl record api for series information as it has been moved to a different endpoint and the record api is no longer updating with playoff information.
             Get all games of a series through this.
             https://records.nhl.com/site/api/playoff-series?cayenneExp=playoffSeriesLetter="A" and seasonId=20182019
 
