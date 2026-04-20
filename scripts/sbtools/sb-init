@@ -158,15 +158,20 @@ if [ "$IS_PI5" = false ]; then
 
     tput bold; echo "$(tput setaf 4)Running rgbmatrix installation...$(tput setaf 9)" ; tput sgr0
 
-    # No longer needed for newer version of the rgb matric repo as of Dec 2021
-    # Recompile the cpp files to build library with newest cython.  See https://github.com/hzeller/rpi-rgb-led-matrix/issues/1298
-
     cd submodules/matrix/ || exit
 
-    # python3 -m pip install --no-cache-dir cython
-    # python3 -m cython -2 --cplus *.pyx
-
-    # cd ../../ || exit
+    # core.cpp and graphics.cpp are not tracked in git — generate them from .pyx sources
+    # before building. Pillow 10+ removed unsafe_ptrs; the submodule source uses PyCapsule
+    # instead, but only after Cython transpiles the .pyx files. Without this step, pip
+    # install fails with "No such file or directory: rgbmatrix/core.cpp".
+    CYTHON_BIN="$(command -v cython3 || command -v cython || echo '')"
+    if [ -n "$CYTHON_BIN" ]; then
+        tput bold; echo "$(tput setaf 4)Pre-generating rgbmatrix Cython sources...$(tput setaf 9)" ; tput sgr0
+        "$CYTHON_BIN" --cplus bindings/python/rgbmatrix/core.pyx
+        "$CYTHON_BIN" --cplus bindings/python/rgbmatrix/graphics.pyx
+    else
+        echo "⚠️  cython3 not found — attempting build anyway (may fail if .cpp files are missing)"
+    fi
 
     make build-python PYTHON="$(command -v python3)"
 
