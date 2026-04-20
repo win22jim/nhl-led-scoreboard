@@ -70,7 +70,11 @@ class GameSummaryBoard:
         time_format = data.config.time_format
 
         # Store game - create if not provided
-        self._game = game_obj if game_obj else get_game(game_details["id"])
+        try:
+            self._game = game_obj if game_obj else get_game(game_details["id"])
+        except Exception as e:
+            debug.error("GameSummaryBoard: failed to get game {}: {}".format(game_details.get("id"), e))
+            self._game = None
 
         # away = linescore.teams.away
         away_team = game_details["awayTeam"]
@@ -133,11 +137,15 @@ class GameSummaryBoard:
     @property
     def is_scheduled(self) -> bool:
         """Check if game is scheduled (not started)"""
+        if self._game is None:
+            return self.status in ("PRE", "FUTURE", "TBD")
         return self._game.is_scheduled
 
     @property
     def is_live(self) -> bool:
         """Check if game is currently live"""
+        if self._game is None:
+            return self.status in ("LIVE", "CRIT")
         return self._game.is_live
 
     @property
@@ -150,11 +158,15 @@ class GameSummaryBoard:
     @property
     def is_final(self) -> bool:
         """Check if game is final"""
+        if self._game is None:
+            return self.status in ("FINAL", "OVER", "OFF")
         return self._game.is_final
 
     @property
     def is_irregular(self) -> bool:
         """Check if game has irregular status (postponed, cancelled, suspended, TBD)"""
+        if self._game is None:
+            return self.status in ("POSTPONED", "CANCELLED", "SUSPENDED", "TBD")
         return self._game.is_irregular
 
     def __str__(self):
