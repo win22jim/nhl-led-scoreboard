@@ -229,6 +229,15 @@ git reset --hard
 git fetch origin --prune
 git pull
 
+# Install logo-editor supervisor service (web dashboard on port 5000)
+if [ -f scripts/supervisor/logo-editor.conf ]; then
+    tput bold; echo "$(tput setaf 4)Installing logo-editor supervisor service (dashboard on :5000)...$(tput setaf 9)" ; tput sgr0
+    sudo cp scripts/supervisor/logo-editor.conf /etc/supervisor/conf.d/logo-editor.conf
+    sudo supervisorctl reread
+    sudo supervisorctl update
+    tput bold; echo "$(tput setaf 2)Dashboard available at http://$(hostname -I | awk '{print $1}'):5000/dashboard$(tput setaf 9)" ; tput sgr0
+fi
+
 # Install nhl_setup binary based on architecture
 tput bold; echo "$(tput setaf 2)Installing nhl_setup binary...$(tput setaf 9)" ; tput sgr0
 if [[ "$DEBIAN_VERSION" == "13"* ]]; then
