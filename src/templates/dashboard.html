@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHL LED Scoreboard — Dashboard</title>
+<style>
+  :root {
+    --bg:           #080c18;
+    --bg-card:      #0d1526;
+    --bg-input:     #111c35;
+    --bg-hover:     #152040;
+    --primary:      #4e6cb4;
+    --primary-hi:   #6b8cd4;
+    --primary-dim:  #2d4580;
+    --primary-glow: rgba(78,108,180,0.18);
+    --text:         #dfe1df;
+    --text-muted:   #7a8aaa;
+    --text-dim:     #4a5a7a;
+    --border:       #1a2748;
+    --border-hi:    #2a3d6a;
+    --success:      #22c55e;
+    --error:        #ef4444;
+    --warning:      #f59e0b;
+    --radius:       8px;
+    --radius-sm:    5px;
+    --transition:   0.18s ease;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 52px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 12px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--primary);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; color: #fff;
+    letter-spacing: -1px; flex-shrink: 0;
+  }
+  .header h1 { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: 0.01em; }
+  .header h1 span { color: var(--primary-hi); }
+  .header-nav { display: flex; gap: 6px; }
+  .header-nav a {
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all var(--transition);
+    border: 1px solid transparent;
+  }
+  .header-nav a:hover { color: var(--text); background: var(--bg-hover); border-color: var(--border); }
+  .header-nav a.active { color: var(--primary-hi); background: var(--primary-glow); border-color: var(--primary-dim); }
+  .status-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .status-chip .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .status-chip.running { color: var(--success); border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.06); }
+  .status-chip.running .dot { background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
+  .status-chip.stopped { color: var(--error); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
+  .status-chip.stopped .dot { background: var(--error); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* ── LAYOUT ── */
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 190px;
+    flex-shrink: 0;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 0;
+    overflow-y: auto;
+  }
+  .sidebar-section { font-size: 10px; font-weight: 700; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 16px 5px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px; font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all var(--transition);
+    user-select: none;
+  }
+  .nav-item:hover { color: var(--text); background: var(--bg-hover); }
+  .nav-item.active { color: var(--primary-hi); background: var(--primary-glow); border-left-color: var(--primary); }
+  .nav-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+  .sidebar-sep { height: 1px; background: var(--border); margin: 10px 12px; }
+
+  /* ── MAIN CONTENT ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .tab-content { flex: 1; overflow-y: auto; padding: 24px; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── FOOTER BAR ── */
+  .footer-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 24px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 12px;
+  }
+  .footer-left { display: flex; align-items: center; gap: 10px; }
+  .footer-right { display: flex; align-items: center; gap: 8px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; outline: none;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hi); }
+  .btn-outline {
+    background: transparent; color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover { color: var(--text); border-color: var(--border-hi); background: var(--bg-hover); }
+  .btn-success { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+  .btn-success:hover { background: rgba(34,197,94,0.25); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--error); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-warning { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+  .btn-warning:hover { background: rgba(245,158,11,0.25); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+  .btn-icon { padding: 6px; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 700;
+    color: var(--text); letter-spacing: 0.01em;
+    margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .badge {
+    font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 10px;
+    background: var(--primary-glow); color: var(--primary-hi);
+    border: 1px solid var(--primary-dim);
+  }
+  .card-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .card-header .card-title { margin-bottom: 0; }
+
+  /* ── FORM ELEMENTS ── */
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    display: block; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+  .field-hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  input[type="text"], input[type="number"], input[type="time"], input[type="password"], select, textarea {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 13px;
+    padding: 8px 11px;
+    outline: none;
+    transition: border-color var(--transition);
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  input[type="number"] { -moz-appearance: textfield; }
+  select { cursor: pointer; }
+  select option { background: var(--bg-card); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* Toggle switch */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  .toggle-row:last-child { margin-bottom: 0; }
+  .toggle-label { font-size: 13px; color: var(--text); font-weight: 500; }
+  .toggle-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+  .toggle {
+    position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--border-hi);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background var(--transition);
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform var(--transition);
+  }
+  .toggle input:checked + .toggle-slider { background: var(--primary); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+  /* Radio group */
+  .radio-group { display: flex; gap: 8px; }
+  .radio-btn {
+    flex: 1; padding: 8px; text-align: center;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 13px; color: var(--text-muted);
+    transition: all var(--transition); user-select: none;
+  }
+  .radio-btn input { display: none; }
+  .radio-btn:has(input:checked),
+  .radio-btn.selected { background: var(--primary-glow); color: var(--primary-hi); border-color: var(--primary-dim); font-weight: 600; }
+
+  /* ── TAGS INPUT ── */
+  .tags-wrapper {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 7px;
+    min-height: 42px; align-items: flex-start;
+    cursor: text;
+  }
+  .tags-wrapper:focus-within { border-color: var(--primary); }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--primary-glow); color: var(--primary-hi);
+    border: 1px solid var(--primary-dim);
+    border-radius: 4px; padding: 2px 8px;
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .tag-remove {
+    cursor: pointer; color: var(--primary-dim); font-size: 14px; line-height: 1;
+    transition: color var(--transition);
+  }
+  .tag-remove:hover { color: var(--error); }
+  .tags-dropdown {
+    position: absolute; z-index: 100;
+    background: var(--bg-card); border: 1px solid var(--border-hi);
+    border-radius: var(--radius-sm);
+    max-height: 200px; overflow-y: auto;
+    width: 200px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .tags-dropdown-item {
+    padding: 7px 12px; cursor: pointer; font-size: 13px; color: var(--text);
+    transition: background var(--transition);
+  }
+  .tags-dropdown-item:hover { background: var(--bg-hover); }
+  .tags-add-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 20px; cursor: pointer; line-height: 1; padding: 0 2px;
+    transition: color var(--transition);
+  }
+  .tags-add-btn:hover { color: var(--primary-hi); }
+
+  /* ── BOARD ROTATION ── */
+  .states-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .state-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .state-header {
+    padding: 10px 14px;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .state-title { font-size: 12px; font-weight: 700; color: var(--text); letter-spacing: 0.04em; text-transform: uppercase; }
+  .state-count { font-size: 11px; color: var(--text-dim); }
+  .board-list {
+    padding: 8px;
+    min-height: 80px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .board-chip {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: grab; user-select: none;
+    transition: all var(--transition);
+    font-size: 12px; font-weight: 600; color: var(--text);
+  }
+  .board-chip:hover { border-color: var(--primary-dim); background: var(--bg-hover); }
+  .board-chip.dragging { opacity: 0.4; cursor: grabbing; }
+  .board-chip.drag-over { border-color: var(--primary); background: var(--primary-glow); }
+  .chip-drag { color: var(--text-dim); font-size: 13px; cursor: grab; }
+  .chip-remove { cursor: pointer; color: var(--text-dim); font-size: 16px; line-height: 1; transition: color var(--transition); }
+  .chip-remove:hover { color: var(--error); }
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: all var(--transition);
+    min-height: 42px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .drop-zone.drag-active { border-color: var(--primary); color: var(--primary-hi); background: var(--primary-glow); }
+  .available-pool {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+    margin-bottom: 16px;
+  }
+  .pool-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .pool-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .pool-chip {
+    padding: 5px 11px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    cursor: grab; user-select: none;
+    transition: all var(--transition);
+  }
+  .pool-chip:hover { color: var(--text); border-color: var(--border-hi); background: var(--bg-hover); }
+  .pool-chip.in-use { opacity: 0.3; cursor: default; }
+
+  /* ── BOARDS ACCORDION ── */
+  .board-accordion { margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .accordion-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: var(--bg-card);
+    transition: background var(--transition);
+    user-select: none;
+  }
+  .accordion-header:hover { background: var(--bg-hover); }
+  .accordion-header-left { display: flex; align-items: center; gap: 10px; }
+  .accordion-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .accordion-arrow { color: var(--text-dim); transition: transform var(--transition); font-size: 12px; }
+  .board-accordion.open .accordion-arrow { transform: rotate(180deg); }
+  .accordion-body { display: none; padding: 16px; background: var(--bg); border-top: 1px solid var(--border); }
+  .board-accordion.open .accordion-body { display: block; }
+
+  /* ── LOGS ── */
+  .logs-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 10px; flex-wrap: wrap;
+  }
+  .log-type-tabs { display: flex; gap: 4px; }
+  .log-tab {
+    padding: 5px 14px; border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text-muted); transition: all var(--transition);
+  }
+  .log-tab.active { background: var(--primary-glow); color: var(--primary-hi); border-color: var(--primary-dim); }
+  .log-viewer {
+    background: #060a14;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    height: 480px;
+    overflow-y: auto;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 11.5px;
+    line-height: 1.65;
+    color: #a8bbd8;
+    scroll-behavior: smooth;
+  }
+  .log-viewer pre { white-space: pre-wrap; word-break: break-all; }
+  .log-line { display: block; }
+  .log-line.info { color: #a8bbd8; }
+  .log-line.error { color: #f87171; }
+  .log-line.warn  { color: #fbbf24; }
+  .log-line.success { color: #4ade80; }
+  .log-filter {
+    padding: 6px 11px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-size: 12px; width: 200px; outline: none;
+  }
+  .log-filter:focus { border-color: var(--primary); }
+
+  /* ── STATUS DETAIL ── */
+  .status-detail {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-box {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+  }
+  .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .stat-value { font-size: 18px; font-weight: 700; color: var(--text); }
+  .stat-value.ok { color: var(--success); }
+  .stat-value.bad { color: var(--error); }
+  .stat-value.warn { color: var(--warning); }
+  .service-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── PLAYER ID LIST ── */
+  .id-list { display: flex; flex-direction: column; gap: 5px; }
+  .id-row { display: flex; gap: 6px; align-items: center; }
+  .id-row input { flex: 1; }
+  .id-remove { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; line-height: 1; padding: 4px; transition: color var(--transition); }
+  .id-remove:hover { color: var(--error); }
+  .id-add { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+
+  /* ── CATEGORIES CHECKBOXES ── */
+  .check-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .check-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 10px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 12px; color: var(--text-muted);
+    transition: all var(--transition); user-select: none;
+  }
+  .check-item:has(input:checked) { background: var(--primary-glow); color: var(--primary-hi); border-color: var(--primary-dim); font-weight: 600; }
+  .check-item input { display: none; }
+
+  /* ── TOAST ── */
+  .toast-container { position: fixed; bottom: 70px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .toast {
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    animation: slideIn 0.2s ease;
+    pointer-events: auto;
+  }
+  .toast.success { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+  .toast.error   { background: rgba(239,68,68,0.15);  color: var(--error);   border: 1px solid rgba(239,68,68,0.3); }
+  .toast.info    { background: var(--primary-glow);   color: var(--primary-hi); border: 1px solid var(--primary-dim); }
+  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ── UNSAVED BANNER ── */
+  .unsaved-banner {
+    display: none;
+    align-items: center; justify-content: space-between;
+    padding: 8px 24px;
+    background: rgba(245,158,11,0.12);
+    border-bottom: 1px solid rgba(245,158,11,0.3);
+    font-size: 12px; color: var(--warning); font-weight: 600;
+    flex-shrink: 0;
+  }
+  .unsaved-banner.visible { display: flex; }
+
+  /* ── SECTION HEADINGS ── */
+  .section-title {
+    font-size: 18px; font-weight: 800; color: var(--text);
+    margin-bottom: 4px; letter-spacing: -0.01em;
+  }
+  .section-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--primary-dim); }
+
+  /* Loading spinner */
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Inline tag for board name */
+  .board-tag {
+    font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text-dim); font-weight: 600;
+  }
+
+  /* Collapsible section for SBIO */
+  .collapse-section { margin-bottom: 10px; }
+  .collapse-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); cursor: pointer;
+    user-select: none; transition: background var(--transition);
+  }
+  .collapse-header:hover { background: var(--bg-hover); }
+  .collapse-header-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .collapse-arrow { color: var(--text-dim); font-size: 11px; transition: transform var(--transition); }
+  .collapse-section.open .collapse-arrow { transform: rotate(180deg); }
+  .collapse-body { display: none; padding: 16px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+  .collapse-section.open .collapse-body { display: block; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo-mark">🏒</div>
+    <h1>NHL LED <span>Scoreboard</span></h1>
+    <nav class="header-nav">
+      <a href="/dashboard" class="active">Dashboard</a>
+      <a href="/">Logo Editor</a>
+      <a href="/team_summary">Team Summary</a>
+    </nav>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div id="statusChip" class="status-chip">
+      <div class="dot"></div>
+      <span id="statusLabel">Checking…</span>
+      <span id="statusUptime" style="color:var(--text-dim);font-weight:400;margin-left:2px;"></span>
+    </div>
+  </div>
+</div>
+
+<!-- UNSAVED CHANGES BANNER -->
+<div class="unsaved-banner" id="unsavedBanner">
+  <span>⚠ You have unsaved changes</span>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-outline btn-sm" onclick="loadConfig()">Discard</button>
+    <button class="btn btn-primary btn-sm" onclick="saveConfig()">Save Now</button>
+  </div>
+</div>
+
+<!-- APP BODY -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">Scoreboard</div>
+    <div class="nav-item active" data-tab="status" onclick="switchTab('status')">
+      <span class="nav-icon">📊</span> Status
+    </div>
+    <div class="nav-item" data-tab="general" onclick="switchTab('general')">
+      <span class="nav-icon">⚙️</span> General
+    </div>
+    <div class="nav-item" data-tab="preferences" onclick="switchTab('preferences')">
+      <span class="nav-icon">🎯</span> Preferences
+    </div>
+    <div class="nav-item" data-tab="rotation" onclick="switchTab('rotation')">
+      <span class="nav-icon">🔄</span> Board Rotation
+    </div>
+    <div class="nav-item" data-tab="boards" onclick="switchTab('boards')">
+      <span class="nav-icon">📋</span> Board Settings
+    </div>
+    <div class="sidebar-sep"></div>
+    <div class="sidebar-section">System</div>
+    <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+      <span class="nav-icon">📜</span> Logs
+    </div>
+    <div class="nav-item" data-tab="advanced" onclick="switchTab('advanced')">
+      <span class="nav-icon">🔧</span> Advanced I/O
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <div class="tab-content">
+
+      <!-- ═══ STATUS TAB ═══ -->
+      <div class="tab-pane active" id="tab-status">
+        <div class="section-title">System Status</div>
+        <div class="section-sub">Live view of the scoreboard service and recent activity.</div>
+
+        <div class="status-detail">
+          <div class="stat-box">
+            <div class="stat-label">Service</div>
+            <div class="stat-value" id="statService">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Uptime</div>
+            <div class="stat-value" id="statUptime" style="font-size:14px;">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Live Mode</div>
+            <div class="stat-value" id="statLiveMode">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Service Controls</div>
+              <div class="card-desc" style="margin-bottom:0;">Start, stop, or restart the scoreboard service via supervisord.</div>
+            </div>
+          </div>
+          <div class="service-controls">
+            <button class="btn btn-success" onclick="serviceControl('start')">▶ Start</button>
+            <button class="btn btn-danger" onclick="serviceControl('stop')">■ Stop</button>
+            <button class="btn btn-warning" onclick="serviceControl('restart')">↺ Restart</button>
+            <button class="btn btn-outline" onclick="refreshStatus()">⟳ Refresh</button>
+          </div>
+          <div id="controlOutput" style="margin-top:12px;font-size:12px;color:var(--text-muted);font-family:monospace;display:none;"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Quick Reference</div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);line-height:2;">
+            <div>📁 Config: <code style="color:var(--primary-hi);">config/config.json</code></div>
+            <div>📜 Stdout log: <code style="color:var(--primary-hi);">/var/log/scoreboard.stdout.log</code></div>
+            <div>📜 Stderr log: <code style="color:var(--primary-hi);">/var/log/scoreboard.stderr.log</code></div>
+            <div>🐍 Venv: <code style="color:var(--primary-hi);">/home/pi/nhlsb-venv/</code></div>
+            <div>🌐 Branch: <code style="color:var(--primary-hi);">win22jim/nhl-led-scoreboard @ 2026.x.x-beta</code></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ GENERAL TAB ═══ -->
+      <div class="tab-pane" id="tab-general">
+        <div class="section-title">General Settings</div>
+        <div class="section-sub">Core runtime options for the scoreboard process.</div>
+
+        <div class="card">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Live Mode</div>
+              <div class="toggle-desc">Run against the real NHL API. Disable for testing only.</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="cfg-live_mode" onchange="markDirty()"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Debug Output</div>
+              <div class="toggle-desc">Enable verbose debug logging (check Logs tab for output).</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="cfg-debug" onchange="markDirty()"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="field">
+            <label class="field-label">Log Level</label>
+            <select id="cfg-loglevel" onchange="markDirty()">
+              <option value="DEBUG">DEBUG — Verbose, everything</option>
+              <option value="INFO">INFO — Standard (recommended)</option>
+              <option value="WARNING">WARNING — Warnings and errors only</option>
+              <option value="ERROR">ERROR — Errors only</option>
+              <option value="CRITICAL">CRITICAL — Critical failures only</option>
+            </select>
+            <div class="field-hint">Controls how much detail appears in stdout log. INFO is recommended for normal use.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ PREFERENCES TAB ═══ -->
+      <div class="tab-pane" id="tab-preferences">
+        <div class="section-title">Preferences</div>
+        <div class="section-sub">Game display, team selection, and timing preferences.</div>
+
+        <div class="card">
+          <div class="card-title">Preferred Teams</div>
+          <div class="card-desc">Teams to highlight. The first team is your primary favourite. Games involving these teams are prioritised.</div>
+          <div class="field">
+            <div class="tags-wrapper" id="teamsWrapper" onclick="openTeamDropdown()">
+              <div id="teamTags" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;"></div>
+              <button class="tags-add-btn" id="teamsAddBtn" title="Add team">+</button>
+            </div>
+            <div style="position:relative;">
+              <div class="tags-dropdown" id="teamDropdown" style="display:none;margin-top:4px;"></div>
+            </div>
+            <div class="field-hint">Drag tags to reorder. First team is the favourite.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">Time & Schedule</div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Time Format</label>
+              <div class="radio-group">
+                <label class="radio-btn" id="rb-12h">
+                  <input type="radio" name="time_format" value="12h" onchange="markDirty()"> 12h
+                </label>
+                <label class="radio-btn" id="rb-24h">
+                  <input type="radio" name="time_format" value="24h" onchange="markDirty()"> 24h
+                </label>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">End of Day <span style="color:var(--text-dim)">(24h)</span></label>
+              <input type="text" id="cfg-end_of_day" placeholder="8:00" onchange="markDirty()" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]">
+              <div class="field-hint">Games before this time count as the previous day.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">Display Settings</div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">Live Game Refresh Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+              <input type="number" id="cfg-live_game_refresh_rate" min="10" max="60" onchange="markDirty()">
+              <div class="field-hint">How often to poll the API during a live game. Min 10s.</div>
+            </div>
+            <div class="field">
+              <label class="field-label">SOG Display Frequency</label>
+              <input type="number" id="cfg-sog_display_frequency" min="1" max="20" onchange="markDirty()">
+              <div class="field-hint">How often shots-on-goal are shown during live games.</div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Location <span style="color:var(--text-dim)">(optional)</span></label>
+            <input type="text" id="cfg-location" placeholder="e.g. Salt Lake City, UT or 40.76,-111.89" onchange="markDirty()">
+            <div class="field-hint">Used by weather and dimmer features. Overrides IP-based location.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px;">Animations</div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Preferred Team Goal Animations Only</div>
+              <div class="toggle-desc">When enabled, goal animations only play for your preferred team.</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="cfg-goal_pref_only" onchange="markDirty()"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Disable Penalty Animation</div>
+              <div class="toggle-desc">Turn off the penalty animation overlay during power plays.</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="cfg-disable_penalty_animation" onchange="markDirty()"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Show Power Play Details</div>
+              <div class="toggle-desc">Display power play time and advantage info during penalties.</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="cfg-show_power_play_details" onchange="markDirty()"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ BOARD ROTATION TAB ═══ -->
+      <div class="tab-pane" id="tab-rotation">
+        <div class="section-title">Board Rotation</div>
+        <div class="section-sub">Drag boards into each game state, or drag to reorder within a state.</div>
+
+        <div class="available-pool">
+          <div class="pool-title">Available Boards — drag into any state</div>
+          <div class="pool-chips" id="poolChips"></div>
+        </div>
+
+        <div class="states-grid">
+          <div class="state-card">
+            <div class="state-header">
+              <div class="state-title">🌙 Off Day</div>
+              <div class="state-count" id="count-off_day"></div>
+            </div>
+            <div class="board-list" id="state-off_day" data-state="off_day"
+              ondragover="onDragOver(event)" ondrop="onDrop(event,'off_day')" ondragleave="onDragLeave(event)">
+            </div>
+            <div class="drop-zone" id="dz-off_day" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-off_day')" ondrop="onDrop(event,'off_day')" ondragleave="onDragLeave(event,'dz-off_day')">+ Drop board here</div>
+          </div>
+          <div class="state-card">
+            <div class="state-header">
+              <div class="state-title">🕐 Scheduled</div>
+              <div class="state-count" id="count-scheduled"></div>
+            </div>
+            <div class="board-list" id="state-scheduled" data-state="scheduled"
+              ondragover="onDragOver(event)" ondrop="onDrop(event,'scheduled')" ondragleave="onDragLeave(event)">
+            </div>
+            <div class="drop-zone" id="dz-scheduled" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-scheduled')" ondrop="onDrop(event,'scheduled')" ondragleave="onDragLeave(event,'dz-scheduled')">+ Drop board here</div>
+          </div>
+          <div class="state-card">
+            <div class="state-header">
+              <div class="state-title">🏒 Intermission</div>
+              <div class="state-count" id="count-intermission"></div>
+            </div>
+            <div class="board-list" id="state-intermission" data-state="intermission"
+              ondragover="onDragOver(event)" ondrop="onDrop(event,'intermission')" ondragleave="onDragLeave(event)">
+            </div>
+            <div class="drop-zone" id="dz-intermission" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-intermission')" ondrop="onDrop(event,'intermission')" ondragleave="onDragLeave(event,'dz-intermission')">+ Drop board here</div>
+          </div>
+          <div class="state-card">
+            <div class="state-header">
+              <div class="state-title">🏁 Post Game</div>
+              <div class="state-count" id="count-post_game"></div>
+            </div>
+            <div class="board-list" id="state-post_game" data-state="post_game"
+              ondragover="onDragOver(event)" ondrop="onDrop(event,'post_game')" ondragleave="onDragLeave(event)">
+            </div>
+            <div class="drop-zone" id="dz-post_game" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-post_game')" ondrop="onDrop(event,'post_game')" ondragleave="onDragLeave(event,'dz-post_game')">+ Drop board here</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ BOARDS TAB ═══ -->
+      <div class="tab-pane" id="tab-boards">
+        <div class="section-title">Board Settings</div>
+        <div class="section-sub">Configure each board's behaviour and display options.</div>
+
+        <!-- SCORETICKER -->
+        <div class="board-accordion open" id="acc-scoreticker">
+          <div class="accordion-header" onclick="toggleAccordion('acc-scoreticker')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Scoreticker</div>
+              <span class="board-tag">scoreticker</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-scoreticker-rotation_rate" min="1" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="display:flex;align-items:flex-end;">
+                <div class="toggle-row" style="flex:1;margin:0;">
+                  <div>
+                    <div class="toggle-label">Preferred Teams Only</div>
+                    <div class="toggle-desc">Show only preferred teams' scores.</div>
+                  </div>
+                  <label class="toggle"><input type="checkbox" id="b-scoreticker-preferred_teams_only" onchange="markDirty()"><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SERIESTICKER -->
+        <div class="board-accordion" id="acc-seriesticker">
+          <div class="accordion-header" onclick="toggleAccordion('acc-seriesticker')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Seriesticker</div>
+              <span class="board-tag">seriesticker</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-seriesticker-rotation_rate" min="1" max="60" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">&nbsp;</label>
+                <div class="toggle-row" style="margin:0;">
+                  <div>
+                    <div class="toggle-label">Preferred Teams Only</div>
+                  </div>
+                  <label class="toggle"><input type="checkbox" id="b-seriesticker-preferred_teams_only" onchange="markDirty()"><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div>
+                <div class="toggle-label">Hide Completed Rounds</div>
+                <div class="toggle-desc">Remove playoff rounds that are already finished from the ticker.</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="b-seriesticker-hide_completed_rounds" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- STANDINGS -->
+        <div class="board-accordion" id="acc-standings">
+          <div class="accordion-header" onclick="toggleAccordion('acc-standings')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Standings</div>
+              <span class="board-tag">standings</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div>
+                <div class="toggle-label">Preferred Standings Only</div>
+                <div class="toggle-desc">Show only your conference standings. Disable to cycle through all.</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="b-standings-preferred_standings_only" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row-3">
+              <div class="field">
+                <label class="field-label">Standing Type</label>
+                <select id="b-standings-standing_type" onchange="markDirty()">
+                  <option value="wild_card">Wild Card</option>
+                  <option value="division">Division</option>
+                  <option value="conference">Conference</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label">Conference</label>
+                <select id="b-standings-conference" onchange="markDirty()">
+                  <option value="western">Western</option>
+                  <option value="eastern">Eastern</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label">Division</label>
+                <select id="b-standings-divisions" onchange="markDirty()">
+                  <option value="central">Central</option>
+                  <option value="pacific">Pacific</option>
+                  <option value="metropolitan">Metropolitan</option>
+                  <option value="atlantic">Atlantic</option>
+                </select>
+              </div>
+            </div>
+            <div class="field" style="max-width:160px;margin-top:4px;">
+              <label class="field-label">Wildcard Limit</label>
+              <input type="number" id="b-standings-wildcard_limit" min="1" max="8" placeholder="2" onchange="markDirty()">
+              <div class="field-hint">Number of wildcard spots shown (typically 2).</div>
+            </div>
+            <div style="font-size:11px;color:var(--warning);margin-top:10px;padding:8px 10px;background:rgba(245,158,11,0.08);border-radius:var(--radius-sm);border:1px solid rgba(245,158,11,0.2);">
+              ⚠ <strong>divisions</strong> is always required by the validator, even when using wild_card type.
+            </div>
+          </div>
+        </div>
+
+        <!-- CLOCK -->
+        <div class="board-accordion" id="acc-clock">
+          <div class="accordion-header" onclick="toggleAccordion('acc-clock')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Clock</div>
+              <span class="board-tag">clock</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Duration <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-clock-duration" min="5" max="300" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Clock RGB Override</label>
+                <input type="text" id="b-clock-clock_rgb" placeholder="e.g. 255,100,0 or leave blank" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Date RGB Override</label>
+              <input type="text" id="b-clock-date_rgb" placeholder="e.g. 100,100,255 or leave blank" onchange="markDirty()">
+            </div>
+            <div class="toggle-row" style="margin-top:6px;">
+              <div><div class="toggle-label">Preferred Team Colors</div><div class="toggle-desc">Use your team's colours for the clock display.</div></div>
+              <label class="toggle"><input type="checkbox" id="b-clock-preferred_team_colors" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Hide Indicator</div></div>
+              <label class="toggle"><input type="checkbox" id="b-clock-hide_indicator" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Flash Seconds</div><div class="toggle-desc">Blink the colon between hours and minutes.</div></div>
+              <label class="toggle"><input type="checkbox" id="b-clock-flash_seconds" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLAYER STATS -->
+        <div class="board-accordion" id="acc-player_stats">
+          <div class="accordion-header" onclick="toggleAccordion('acc-player_stats')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Player Stats</div>
+              <span class="board-tag">player_stats</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field" style="max-width:200px;margin-bottom:16px;">
+              <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+              <input type="number" id="b-player_stats-rotation_rate" min="3" max="60" onchange="markDirty()">
+            </div>
+            <div class="field">
+              <label class="field-label">Player IDs to Track</label>
+              <div class="id-list" id="playerIdList"></div>
+              <div class="id-add">
+                <button class="btn btn-outline btn-sm" onclick="addPlayerId()">+ Add Player ID</button>
+                <span style="font-size:11px;color:var(--text-dim);">Find IDs on NHL.com player pages</span>
+              </div>
+              <div class="field-hint">Current tracked players: Keller #9 (8479343) · Guenther #11 (8482699) · Vejmelka #70 (8478872)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STATS LEADERS -->
+        <div class="board-accordion" id="acc-stats_leaders">
+          <div class="accordion-header" onclick="toggleAccordion('acc-stats_leaders')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Stats Leaders</div>
+              <span class="board-tag">stats_leaders</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field" style="max-width:200px;margin-bottom:16px;">
+              <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+              <input type="number" id="b-stats_leaders-rotation_rate" min="3" max="60" onchange="markDirty()">
+            </div>
+            <div class="field">
+              <label class="field-label">Categories to Display</label>
+              <div class="check-grid" id="statCategoryGrid"></div>
+              <div class="field-hint">Goalie stats not available here — use Player Stats board with Vejmelka's ID instead.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WEATHER -->
+        <div class="board-accordion" id="acc-weather">
+          <div class="accordion-header" onclick="toggleAccordion('acc-weather')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Weather</div>
+              <span class="board-tag">weather</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div><div class="toggle-label">Enable Weather Board</div></div>
+              <label class="toggle"><input type="checkbox" id="b-weather-enabled" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Data Feed</label>
+                <select id="b-weather-data_feed" onchange="markDirty()">
+                  <option value="EC">Environment Canada (EC)</option>
+                  <option value="OWM">OpenWeatherMap (OWM)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label">Units</label>
+                <select id="b-weather-units" onchange="markDirty()">
+                  <option value="metric">Metric (°C)</option>
+                  <option value="imperial">Imperial (°F)</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">View</label>
+                <select id="b-weather-view" onchange="markDirty()">
+                  <option value="full">Full</option>
+                  <option value="slim">Slim</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label">Duration <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-weather-duration" min="10" max="300" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">OpenWeatherMap API Key <span style="color:var(--text-dim)">(if using OWM)</span></label>
+              <input type="text" id="b-weather-owm_apikey" placeholder="Enter OWM API key" onchange="markDirty()">
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Update Frequency <span style="color:var(--text-dim)">(minutes)</span></label>
+                <input type="number" id="b-weather-update_freq" min="1" max="60" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Show on Clock</div><div class="toggle-desc">Display current temperature alongside the clock board.</div></div>
+              <label class="toggle"><input type="checkbox" id="b-weather-show_on_clock" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="divider"></div>
+            <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">Forecast</div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Enable Forecast</div></div>
+              <label class="toggle"><input type="checkbox" id="b-weather-forecast_enabled" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Show Today in Forecast</div></div>
+              <label class="toggle"><input type="checkbox" id="b-weather-forecast_show_today" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row" style="margin-top:10px;">
+              <div class="field">
+                <label class="field-label">Forecast Days</label>
+                <input type="number" id="b-weather-forecast_days" min="1" max="7" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Forecast Update <span style="color:var(--text-dim)">(hours)</span></label>
+                <input type="number" id="b-weather-forecast_update" min="1" max="24" onchange="markDirty()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WX ALERTS -->
+        <div class="board-accordion" id="acc-wxalert">
+          <div class="accordion-header" onclick="toggleAccordion('acc-wxalert')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Weather Alerts</div>
+              <span class="board-tag">wxalert</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div><div class="toggle-label">Show Alerts</div></div>
+              <label class="toggle"><input type="checkbox" id="b-wxalert-show_alerts" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Alert Feed</label>
+                <select id="b-wxalert-alert_feed" onchange="markDirty()">
+                  <option value="EC">Environment Canada (EC)</option>
+                  <option value="NWS">National Weather Service (NWS)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label">Update Frequency <span style="color:var(--text-dim)">(minutes)</span></label>
+                <input type="number" id="b-wxalert-update_freq" min="1" max="60" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Alert Duration <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-wxalert-alert_duration" min="3" max="60" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Show Alert Title</div></div>
+              <label class="toggle"><input type="checkbox" id="b-wxalert-alert_title" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Scroll Alert Text</div></div>
+              <label class="toggle"><input type="checkbox" id="b-wxalert-scroll_alert" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">NWS Show Expire</div><div class="toggle-desc">Show expiry time on NWS alerts.</div></div>
+              <label class="toggle"><input type="checkbox" id="b-wxalert-nws_show_expire" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Show on Clock</div></div>
+              <label class="toggle"><input type="checkbox" id="b-wxalert-show_on_clock" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ LOGS TAB ═══ -->
+      <div class="tab-pane" id="tab-logs">
+        <div class="section-title">Logs</div>
+        <div class="section-sub">Live view of scoreboard output. Auto-refreshes every 4 seconds.</div>
+
+        <div class="logs-toolbar">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div class="log-type-tabs">
+              <div class="log-tab active" id="logTabStdout" onclick="switchLogType('stdout')">Stdout</div>
+              <div class="log-tab" id="logTabStderr" onclick="switchLogType('stderr')">Stderr</div>
+            </div>
+            <input type="text" class="log-filter" id="logFilter" placeholder="Filter lines…" oninput="applyLogFilter()">
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+              <input type="checkbox" id="logAutoScroll" checked style="width:auto;"> Auto-scroll
+            </label>
+            <button class="btn btn-outline btn-sm" onclick="fetchLogs()">⟳ Refresh</button>
+            <button class="btn btn-outline btn-sm" onclick="clearLogDisplay()">✕ Clear</button>
+          </div>
+        </div>
+        <div class="log-viewer" id="logViewer"><pre id="logPre" style="margin:0;"></pre></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;text-align:right;" id="logMeta"></div>
+      </div>
+
+      <!-- ═══ ADVANCED TAB ═══ -->
+      <div class="tab-pane" id="tab-advanced">
+        <div class="section-title">Advanced I/O (SBIO)</div>
+        <div class="section-sub">MQTT, screensaver, dimmer, and pushbutton configuration. Most users do not need these.</div>
+
+        <!-- MQTT -->
+        <div class="collapse-section open" id="cs-mqtt">
+          <div class="collapse-header" onclick="toggleCollapse('cs-mqtt')">
+            <div class="collapse-header-title">📡 MQTT</div>
+            <span class="collapse-arrow">▼</span>
+          </div>
+          <div class="collapse-body">
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div><div class="toggle-label">Enable MQTT</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-mqtt-enabled" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Broker Host</label>
+                <input type="text" id="sbio-mqtt-broker" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Port</label>
+                <input type="number" id="sbio-mqtt-port" min="1" max="65535" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Main Topic</label>
+              <input type="text" id="sbio-mqtt-main_topic" onchange="markDirty()">
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Username</label>
+                <input type="text" id="sbio-mqtt-username" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Password</label>
+                <input type="password" id="sbio-mqtt-password" onchange="markDirty()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCREENSAVER -->
+        <div class="collapse-section" id="cs-screensaver">
+          <div class="collapse-header" onclick="toggleCollapse('cs-screensaver')">
+            <div class="collapse-header-title">🌑 Screensaver</div>
+            <span class="collapse-arrow">▼</span>
+          </div>
+          <div class="collapse-body">
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div><div class="toggle-label">Enable Screensaver</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-screensaver-enabled" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Animations</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-screensaver-animations" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Motion Sensor</div><div class="toggle-desc">Wake on motion detected by GPIO sensor.</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-screensaver-motionsensor" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Allow Data Updates While Screensaving</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-screensaver-data_updates" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row" style="margin-top:14px;">
+              <div class="field">
+                <label class="field-label">Start Time <span style="color:var(--text-dim)">(24h)</span></label>
+                <input type="text" id="sbio-screensaver-start" placeholder="22:00" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Stop Time <span style="color:var(--text-dim)">(24h)</span></label>
+                <input type="text" id="sbio-screensaver-stop" placeholder="08:00" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">GPIO Pin</label>
+                <input type="number" id="sbio-screensaver-pin" min="1" max="40" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Delay <span style="color:var(--text-dim)">(minutes)</span></label>
+                <input type="number" id="sbio-screensaver-delay" min="1" max="120" onchange="markDirty()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIMMER -->
+        <div class="collapse-section" id="cs-dimmer">
+          <div class="collapse-header" onclick="toggleCollapse('cs-dimmer')">
+            <div class="collapse-header-title">🔆 Dimmer</div>
+            <span class="collapse-arrow">▼</span>
+          </div>
+          <div class="collapse-body">
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div><div class="toggle-label">Enable Dimmer</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-dimmer-enabled" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Source</label>
+                <select id="sbio-dimmer-source" onchange="markDirty()">
+                  <option value="software">Software (schedule)</option>
+                  <option value="light">Light sensor</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label">Mode</label>
+                <select id="sbio-dimmer-mode" onchange="markDirty()">
+                  <option value="always">Always</option>
+                  <option value="weather">Weather</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Daytime Time <span style="color:var(--text-dim)">(24h)</span></label>
+                <input type="text" id="sbio-dimmer-daytime" placeholder="08:00" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Nighttime Time <span style="color:var(--text-dim)">(24h)</span></label>
+                <input type="text" id="sbio-dimmer-nighttime" placeholder="21:00" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Sunrise Brightness <span style="color:var(--text-dim)">(%)</span></label>
+                <input type="number" id="sbio-dimmer-sunrise_brightness" min="0" max="100" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Sunset Brightness <span style="color:var(--text-dim)">(%)</span></label>
+                <input type="number" id="sbio-dimmer-sunset_brightness" min="0" max="100" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Update Frequency <span style="color:var(--text-dim)">(minutes)</span></label>
+                <input type="number" id="sbio-dimmer-frequency" min="1" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Light Level Threshold <span style="color:var(--text-dim)">(lux)</span></label>
+                <input type="number" id="sbio-dimmer-light_level_lux" min="0" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field" style="max-width:200px;">
+              <label class="field-label">Offset <span style="color:var(--text-dim)">(minutes from sunrise/sunset)</span></label>
+              <input type="number" id="sbio-dimmer-offset" onchange="markDirty()">
+            </div>
+          </div>
+        </div>
+
+        <!-- PUSH BUTTON -->
+        <div class="collapse-section" id="cs-pushbutton">
+          <div class="collapse-header" onclick="toggleCollapse('cs-pushbutton')">
+            <div class="collapse-header-title">🔘 Push Button</div>
+            <span class="collapse-arrow">▼</span>
+          </div>
+          <div class="collapse-body">
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div><div class="toggle-label">Enable Push Button</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-pushbutton-enabled" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Bonnet Mode</div><div class="toggle-desc">Enable if using Adafruit RGB Matrix Bonnet buttons.</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-pushbutton-bonnet" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row" style="margin-top:14px;">
+              <div class="field">
+                <label class="field-label">GPIO Pin</label>
+                <input type="number" id="sbio-pushbutton-pin" min="1" max="40" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Reboot Hold Duration <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="sbio-pushbutton-reboot_duration" min="1" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Power-off Hold Duration <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="sbio-pushbutton-poweroff_duration" min="1" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Display Reboot Confirmation</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-pushbutton-display_reboot" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Display Halt Confirmation</div></div>
+              <label class="toggle"><input type="checkbox" id="sbio-pushbutton-display_halt" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-row" style="margin-top:14px;">
+              <div class="field">
+                <label class="field-label">Single-Press Board</label>
+                <input type="text" id="sbio-pushbutton-state_triggered1" placeholder="e.g. weather" onchange="markDirty()">
+              </div>
+              <div class="field">
+                <label class="field-label">Single-Press Override Process</label>
+                <input type="text" id="sbio-pushbutton-state_triggered1_process" onchange="markDirty()">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER BAR -->
+    <div class="footer-bar">
+      <div class="footer-left">
+        <span id="configStatus" style="font-size:12px;color:var(--text-dim);">Loading config…</span>
+      </div>
+      <div class="footer-right">
+        <button class="btn btn-outline" onclick="loadConfig()">↩ Discard Changes</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">💾 Save Config</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+
+let config = {};
+let dirty = false;
+let logType = 'stdout';
+let logInterval = null;
+let statusInterval = null;
+let rawLogText = '';
+let dragSource = null; // {board, fromState} or {board, fromPool}
+
+const ALL_TEAMS = [
+  "Avalanche","Blackhawks","Blue Jackets","Blues","Bruins","Canadiens","Canucks",
+  "Capitals","Devils","Ducks","Flames","Flyers","Golden Knights","Hurricanes",
+  "Islanders","Jets","Kings","Kraken","Lightning","Maple Leafs","Mammoth","Oilers",
+  "Panthers","Penguins","Predators","Rangers","Red Wings","Sabres","Senators",
+  "Sharks","Stars","Wild"
+];
+
+const ALL_BOARDS = [
+  "standings","scoreticker","seriesticker","clock","weather","wxalert",
+  "player_stats","stats_leaders","team_summary","season_countdown"
+];
+
+const STAT_CATEGORIES = [
+  "goals","assists","points","toi","plusMinus","penaltyMins",
+  "faceoffLeaders","goalsPp","goalsSh"
+];
+
+const STATES = ["off_day","scheduled","intermission","post_game"];
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+
+window.addEventListener('DOMContentLoaded', () => {
+  buildStatCategories();
+  loadConfig();
+  startStatusPolling();
+  startLogPolling();
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#teamDropdown') && !e.target.closest('#teamsWrapper')) {
+      document.getElementById('teamDropdown').style.display = 'none';
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+
+function switchTab(name) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'logs') fetchLogs();
+}
+
+function toggleAccordion(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function toggleCollapse(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONFIG LOAD / SAVE
+// ═══════════════════════════════════════════════════════════
+
+async function loadConfig() {
+  setConfigStatus('Loading…', 'muted');
+  try {
+    const r = await fetch('/api/scoreboard/config');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    config = await r.json();
+    populateForm(config);
+    dirty = false;
+    document.getElementById('unsavedBanner').classList.remove('visible');
+    setConfigStatus('Config loaded', 'ok');
+  } catch (e) {
+    setConfigStatus('Failed to load config: ' + e.message, 'error');
+    toast('Failed to load config: ' + e.message, 'error');
+  }
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+  try {
+    const payload = buildConfig();
+    const r = await fetch('/api/scoreboard/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if (data.status === 'success') {
+      config = payload;
+      dirty = false;
+      document.getElementById('unsavedBanner').classList.remove('visible');
+      setConfigStatus('Saved ✓ — restart scoreboard to apply changes', 'ok');
+      toast('Config saved! Restart the scoreboard to apply changes.', 'success');
+    } else {
+      throw new Error(data.message || 'Unknown error');
+    }
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'error');
+    setConfigStatus('Save failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Save Config';
+  }
+}
+
+function markDirty() {
+  dirty = true;
+  document.getElementById('unsavedBanner').classList.add('visible');
+  setConfigStatus('Unsaved changes', 'warn');
+}
+
+function setConfigStatus(msg, type) {
+  const el = document.getElementById('configStatus');
+  el.textContent = msg;
+  el.style.color = type === 'ok' ? 'var(--success)' : type === 'error' ? 'var(--error)' : type === 'warn' ? 'var(--warning)' : 'var(--text-dim)';
+}
+
+// ═══════════════════════════════════════════════════════════
+// POPULATE FORM FROM CONFIG
+// ═══════════════════════════════════════════════════════════
+
+function populateForm(cfg) {
+  // General
+  setToggle('cfg-live_mode', cfg.live_mode);
+  setToggle('cfg-debug', cfg.debug);
+  setSelect('cfg-loglevel', cfg.loglevel || 'INFO');
+
+  // Preferences
+  const prefs = cfg.preferences || {};
+  renderTeamTags(prefs.teams || []);
+  setRadio('time_format', prefs.time_format || '12h');
+  setVal('cfg-end_of_day', prefs.end_of_day || '8:00');
+  setVal('cfg-live_game_refresh_rate', prefs.live_game_refresh_rate ?? 10);
+  setVal('cfg-sog_display_frequency', prefs.sog_display_frequency ?? 4);
+  setVal('cfg-location', prefs.location || '');
+  const anim = prefs.goal_animations || {};
+  setToggle('cfg-goal_pref_only', anim.pref_team_only);
+  setToggle('cfg-disable_penalty_animation', prefs.disable_penalty_animation);
+  setToggle('cfg-show_power_play_details', prefs.show_power_play_details);
+
+  // States / board rotation
+  const states = cfg.states || {};
+  STATES.forEach(s => renderStateList(s, states[s] || []));
+  updatePoolChips();
+
+  // Boards
+  const boards = cfg.boards || {};
+  // Scoreticker
+  const st = boards.scoreticker || {};
+  setVal('b-scoreticker-rotation_rate', st.rotation_rate ?? 5);
+  setToggle('b-scoreticker-preferred_teams_only', st.preferred_teams_only);
+
+  // Seriesticker
+  const sr = boards.seriesticker || {};
+  setVal('b-seriesticker-rotation_rate', sr.rotation_rate ?? 5);
+  setToggle('b-seriesticker-preferred_teams_only', sr.preferred_teams_only);
+  setToggle('b-seriesticker-hide_completed_rounds', sr.hide_completed_rounds);
+
+  // Standings
+  const sl = boards.standings || {};
+  setToggle('b-standings-preferred_standings_only', sl.preferred_standings_only);
+  setSelect('b-standings-standing_type', sl.standing_type || 'wild_card');
+  setSelect('b-standings-conference', sl.conference || 'western');
+  setSelect('b-standings-divisions', sl.divisions || 'central');
+  setVal('b-standings-wildcard_limit', sl.wildcard_limit ?? '');
+
+  // Clock
+  const cl = boards.clock || {};
+  setVal('b-clock-duration', cl.duration ?? 15);
+  setToggle('b-clock-hide_indicator', cl.hide_indicator);
+  setToggle('b-clock-preferred_team_colors', cl.preferred_team_colors);
+  setVal('b-clock-clock_rgb', cl.clock_rgb || '');
+  setVal('b-clock-date_rgb', cl.date_rgb || '');
+  setToggle('b-clock-flash_seconds', cl.flash_seconds);
+
+  // Player stats
+  const ps = boards.player_stats || {};
+  setVal('b-player_stats-rotation_rate', ps.rotation_rate ?? 7);
+  renderPlayerIdList(ps.players || []);
+
+  // Stats leaders
+  const ls = boards.stats_leaders || {};
+  setVal('b-stats_leaders-rotation_rate', ls.rotation_rate ?? 7);
+  setCategories(ls.categories || []);
+
+  // Weather
+  const wx = boards.weather || {};
+  setToggle('b-weather-enabled', wx.enabled);
+  setSelect('b-weather-data_feed', wx.data_feed || 'EC');
+  setSelect('b-weather-units', wx.units || 'metric');
+  setSelect('b-weather-view', wx.view || 'full');
+  setVal('b-weather-duration', wx.duration ?? 60);
+  setVal('b-weather-owm_apikey', wx.owm_apikey || '');
+  setVal('b-weather-update_freq', wx.update_freq ?? 5);
+  setToggle('b-weather-show_on_clock', wx.show_on_clock);
+  setToggle('b-weather-forecast_enabled', wx.forecast_enabled);
+  setToggle('b-weather-forecast_show_today', wx.forecast_show_today);
+  setVal('b-weather-forecast_days', wx.forecast_days ?? 3);
+  setVal('b-weather-forecast_update', wx.forecast_update ?? 1);
+
+  // WX Alerts
+  const wa = boards.wxalert || {};
+  setSelect('b-wxalert-alert_feed', wa.alert_feed || 'EC');
+  setVal('b-wxalert-update_freq', wa.update_freq ?? 5);
+  setToggle('b-wxalert-show_alerts', wa.show_alerts);
+  setToggle('b-wxalert-nws_show_expire', wa.nws_show_expire);
+  setToggle('b-wxalert-alert_title', wa.alert_title);
+  setToggle('b-wxalert-scroll_alert', wa.scroll_alert);
+  setVal('b-wxalert-alert_duration', wa.alert_duration ?? 5);
+  setToggle('b-wxalert-show_on_clock', wa.show_on_clock);
+
+  // SBIO
+  const sbio = cfg.sbio || {};
+  const mqtt = sbio.mqtt || {};
+  setToggle('sbio-mqtt-enabled', mqtt.enabled);
+  setVal('sbio-mqtt-broker', mqtt.broker || '');
+  setVal('sbio-mqtt-port', mqtt.port ?? 1883);
+  setVal('sbio-mqtt-main_topic', mqtt.main_topic || '');
+  setVal('sbio-mqtt-username', (mqtt.auth || {}).username || '');
+  setVal('sbio-mqtt-password', (mqtt.auth || {}).password || '');
+
+  const ss = sbio.screensaver || {};
+  setToggle('sbio-screensaver-enabled', ss.enabled);
+  setToggle('sbio-screensaver-animations', ss.animations);
+  setToggle('sbio-screensaver-motionsensor', ss.motionsensor);
+  setToggle('sbio-screensaver-data_updates', ss.data_updates);
+  setVal('sbio-screensaver-start', ss.start || '22:00');
+  setVal('sbio-screensaver-stop', ss.stop || '08:00');
+  setVal('sbio-screensaver-pin', ss.pin ?? 7);
+  setVal('sbio-screensaver-delay', ss.delay ?? 30);
+
+  const dm = sbio.dimmer || {};
+  setToggle('sbio-dimmer-enabled', dm.enabled);
+  setSelect('sbio-dimmer-source', dm.source || 'software');
+  setSelect('sbio-dimmer-mode', dm.mode || 'always');
+  setVal('sbio-dimmer-daytime', dm.daytime || '');
+  setVal('sbio-dimmer-nighttime', dm.nighttime || '');
+  setVal('sbio-dimmer-sunrise_brightness', dm.sunrise_brightness ?? 40);
+  setVal('sbio-dimmer-sunset_brightness', dm.sunset_brightness ?? 5);
+  setVal('sbio-dimmer-frequency', dm.frequency ?? 5);
+  setVal('sbio-dimmer-light_level_lux', dm.light_level_lux ?? 400);
+  setVal('sbio-dimmer-offset', dm.offset ?? 0);
+
+  const pb = sbio.pushbutton || {};
+  setToggle('sbio-pushbutton-enabled', pb.enabled);
+  setToggle('sbio-pushbutton-bonnet', pb.bonnet);
+  setVal('sbio-pushbutton-pin', pb.pin ?? 25);
+  setVal('sbio-pushbutton-reboot_duration', pb.reboot_duration ?? 2);
+  setVal('sbio-pushbutton-poweroff_duration', pb.poweroff_duration ?? 10);
+  setToggle('sbio-pushbutton-display_reboot', pb.display_reboot);
+  setToggle('sbio-pushbutton-display_halt', pb.display_halt);
+  setVal('sbio-pushbutton-state_triggered1', pb.state_triggered1 || '');
+  setVal('sbio-pushbutton-state_triggered1_process', pb.state_triggered1_process || '');
+}
+
+// ═══════════════════════════════════════════════════════════
+// BUILD CONFIG FROM FORM
+// ═══════════════════════════════════════════════════════════
+
+function buildConfig() {
+  return {
+    debug: getToggle('cfg-debug'),
+    loglevel: getSelect('cfg-loglevel'),
+    live_mode: getToggle('cfg-live_mode'),
+    preferences: {
+      time_format: getRadio('time_format'),
+      end_of_day: getVal('cfg-end_of_day') || '8:00',
+      location: getVal('cfg-location'),
+      live_game_refresh_rate: getNum('cfg-live_game_refresh_rate', 10),
+      teams: getTeamTags(),
+      sog_display_frequency: getNum('cfg-sog_display_frequency', 4),
+      goal_animations: { pref_team_only: getToggle('cfg-goal_pref_only') },
+      disable_penalty_animation: getToggle('cfg-disable_penalty_animation'),
+      show_power_play_details: getToggle('cfg-show_power_play_details')
+    },
+    states: {
+      off_day: getStateList('off_day'),
+      scheduled: getStateList('scheduled'),
+      intermission: getStateList('intermission'),
+      post_game: getStateList('post_game')
+    },
+    boards: {
+      scoreticker: {
+        preferred_teams_only: getToggle('b-scoreticker-preferred_teams_only'),
+        rotation_rate: getNum('b-scoreticker-rotation_rate', 5)
+      },
+      seriesticker: {
+        preferred_teams_only: getToggle('b-seriesticker-preferred_teams_only'),
+        rotation_rate: getNum('b-seriesticker-rotation_rate', 5),
+        hide_completed_rounds: getToggle('b-seriesticker-hide_completed_rounds')
+      },
+      standings: {
+        preferred_standings_only: getToggle('b-standings-preferred_standings_only'),
+        standing_type: getSelect('b-standings-standing_type'),
+        conference: getSelect('b-standings-conference'),
+        divisions: getSelect('b-standings-divisions'),
+        ...(getVal('b-standings-wildcard_limit') !== '' && {wildcard_limit: getNum('b-standings-wildcard_limit', 2)})
+      },
+      clock: {
+        duration: getNum('b-clock-duration', 15),
+        hide_indicator: getToggle('b-clock-hide_indicator'),
+        preferred_team_colors: getToggle('b-clock-preferred_team_colors'),
+        clock_rgb: getVal('b-clock-clock_rgb'),
+        date_rgb: getVal('b-clock-date_rgb'),
+        flash_seconds: getToggle('b-clock-flash_seconds')
+      },
+      weather: {
+        enabled: getToggle('b-weather-enabled'),
+        view: getSelect('b-weather-view'),
+        units: getSelect('b-weather-units'),
+        duration: getNum('b-weather-duration', 60),
+        data_feed: getSelect('b-weather-data_feed'),
+        owm_apikey: getVal('b-weather-owm_apikey'),
+        update_freq: getNum('b-weather-update_freq', 5),
+        show_on_clock: getToggle('b-weather-show_on_clock'),
+        forecast_enabled: getToggle('b-weather-forecast_enabled'),
+        forecast_show_today: getToggle('b-weather-forecast_show_today'),
+        forecast_days: getNum('b-weather-forecast_days', 3),
+        forecast_update: getNum('b-weather-forecast_update', 1)
+      },
+      wxalert: {
+        alert_feed: getSelect('b-wxalert-alert_feed'),
+        update_freq: getNum('b-wxalert-update_freq', 5),
+        show_alerts: getToggle('b-wxalert-show_alerts'),
+        nws_show_expire: getToggle('b-wxalert-nws_show_expire'),
+        alert_title: getToggle('b-wxalert-alert_title'),
+        scroll_alert: getToggle('b-wxalert-scroll_alert'),
+        alert_duration: getNum('b-wxalert-alert_duration', 5),
+        show_on_clock: getToggle('b-wxalert-show_on_clock')
+      },
+      player_stats: {
+        rotation_rate: getNum('b-player_stats-rotation_rate', 7),
+        players: getPlayerIds()
+      },
+      stats_leaders: {
+        rotation_rate: getNum('b-stats_leaders-rotation_rate', 7),
+        categories: getCategories()
+      },
+      // Preserve any extra board config from original (team_summary, etc.)
+      ...preserveExtraBoards()
+    },
+    sbio: {
+      mqtt: {
+        enabled: getToggle('sbio-mqtt-enabled'),
+        broker: getVal('sbio-mqtt-broker'),
+        port: getNum('sbio-mqtt-port', 1883),
+        auth: { username: getVal('sbio-mqtt-username'), password: getVal('sbio-mqtt-password') },
+        main_topic: getVal('sbio-mqtt-main_topic')
+      },
+      screensaver: {
+        enabled: getToggle('sbio-screensaver-enabled'),
+        animations: getToggle('sbio-screensaver-animations'),
+        start: getVal('sbio-screensaver-start'),
+        stop: getVal('sbio-screensaver-stop'),
+        data_updates: getToggle('sbio-screensaver-data_updates'),
+        motionsensor: getToggle('sbio-screensaver-motionsensor'),
+        pin: getNum('sbio-screensaver-pin', 7),
+        delay: getNum('sbio-screensaver-delay', 30)
+      },
+      dimmer: {
+        enabled: getToggle('sbio-dimmer-enabled'),
+        source: getSelect('sbio-dimmer-source'),
+        daytime: getVal('sbio-dimmer-daytime'),
+        nighttime: getVal('sbio-dimmer-nighttime'),
+        offset: getNum('sbio-dimmer-offset', 0),
+        frequency: getNum('sbio-dimmer-frequency', 5),
+        light_level_lux: getNum('sbio-dimmer-light_level_lux', 400),
+        mode: getSelect('sbio-dimmer-mode'),
+        sunset_brightness: getNum('sbio-dimmer-sunset_brightness', 5),
+        sunrise_brightness: getNum('sbio-dimmer-sunrise_brightness', 40)
+      },
+      pushbutton: {
+        enabled: getToggle('sbio-pushbutton-enabled'),
+        bonnet: getToggle('sbio-pushbutton-bonnet'),
+        pin: getNum('sbio-pushbutton-pin', 25),
+        reboot_duration: getNum('sbio-pushbutton-reboot_duration', 2),
+        reboot_override_process: (config.sbio||{}).pushbutton?.reboot_override_process || '',
+        display_reboot: getToggle('sbio-pushbutton-display_reboot'),
+        poweroff_duration: getNum('sbio-pushbutton-poweroff_duration', 10),
+        poweroff_override_process: (config.sbio||{}).pushbutton?.poweroff_override_process || '',
+        display_halt: getToggle('sbio-pushbutton-display_halt'),
+        state_triggered1: getVal('sbio-pushbutton-state_triggered1'),
+        state_triggered1_process: getVal('sbio-pushbutton-state_triggered1_process')
+      }
+    }
+  };
+}
+
+function preserveExtraBoards() {
+  const known = new Set(['scoreticker','seriesticker','standings','clock','weather','wxalert','player_stats','stats_leaders']);
+  const extra = {};
+  const orig = (config.boards || {});
+  Object.keys(orig).forEach(k => { if (!known.has(k)) extra[k] = orig[k]; });
+  return extra;
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORM HELPERS
+// ═══════════════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+function setVal(id, v) { const el = $(id); if (el) el.value = v ?? ''; }
+function getVal(id) { const el = $(id); return el ? el.value.trim() : ''; }
+function getNum(id, def) { const v = parseFloat(getVal(id)); return isNaN(v) ? def : v; }
+function setToggle(id, v) { const el = $(id); if (el) el.checked = !!v; }
+function getToggle(id) { const el = $(id); return el ? el.checked : false; }
+function setSelect(id, v) { const el = $(id); if (el) el.value = v; }
+function getSelect(id) { const el = $(id); return el ? el.value : ''; }
+function setRadio(name, v) {
+  document.querySelectorAll(`[name="${name}"]`).forEach(el => {
+    el.checked = (el.value === v);
+    el.closest('.radio-btn').classList.toggle('selected', el.value === v);
+  });
+}
+function getRadio(name) {
+  const el = document.querySelector(`[name="${name}"]:checked`);
+  return el ? el.value : '12h';
+}
+
+document.querySelectorAll('.radio-btn input').forEach(inp => {
+  inp.addEventListener('change', () => {
+    document.querySelectorAll(`[name="${inp.name}"]`).forEach(e => e.closest('.radio-btn').classList.toggle('selected', e.checked));
+    markDirty();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// TEAM TAGS
+// ═══════════════════════════════════════════════════════════
+
+let currentTeams = [];
+
+function renderTeamTags(teams) {
+  currentTeams = [...teams];
+  const container = $('teamTags');
+  container.innerHTML = '';
+  currentTeams.forEach((t, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.draggable = true;
+    tag.dataset.idx = i;
+    tag.innerHTML = `${t} <span class="tag-remove" onclick="removeTeam(${i})">×</span>`;
+    tag.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', i); });
+    tag.addEventListener('dragover', e => e.preventDefault());
+    tag.addEventListener('drop', e => {
+      e.preventDefault();
+      const from = parseInt(e.dataTransfer.getData('text/plain'));
+      const to = i;
+      if (from !== to) { const a = currentTeams.splice(from, 1)[0]; currentTeams.splice(to, 0, a); renderTeamTags(currentTeams); markDirty(); }
+    });
+    container.appendChild(tag);
+  });
+}
+function getTeamTags() { return [...currentTeams]; }
+function removeTeam(i) { currentTeams.splice(i, 1); renderTeamTags(currentTeams); markDirty(); }
+function openTeamDropdown() {
+  const dd = $('teamDropdown');
+  dd.innerHTML = '';
+  const remaining = ALL_TEAMS.filter(t => !currentTeams.includes(t));
+  if (!remaining.length) { dd.style.display = 'none'; return; }
+  remaining.forEach(t => {
+    const item = document.createElement('div');
+    item.className = 'tags-dropdown-item';
+    item.textContent = t;
+    item.onclick = () => { currentTeams.push(t); renderTeamTags(currentTeams); dd.style.display = 'none'; markDirty(); };
+    dd.appendChild(item);
+  });
+  dd.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOARD ROTATION
+// ═══════════════════════════════════════════════════════════
+
+function renderStateList(state, boards) {
+  const list = $(`state-${state}`);
+  list.innerHTML = '';
+  boards.forEach((b, i) => list.appendChild(makeChip(b, state, i)));
+  updateStateCount(state);
+}
+
+function makeChip(board, state, idx) {
+  const chip = document.createElement('div');
+  chip.className = 'board-chip';
+  chip.draggable = true;
+  chip.dataset.board = board;
+  chip.dataset.state = state;
+  chip.innerHTML = `<span class="chip-drag">⠿</span> ${board} <span class="chip-remove" onclick="removeFromState('${state}',${idx})">×</span>`;
+  chip.addEventListener('dragstart', e => {
+    dragSource = {board, fromState: state};
+    chip.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({board, fromState: state}));
+  });
+  chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+  return chip;
+}
+
+function removeFromState(state, idx) {
+  const listEl = $(`state-${state}`);
+  const chips = [...listEl.querySelectorAll('.board-chip')];
+  const board = chips[idx].dataset.board;
+  chips[idx].remove();
+  updateStateCount(state);
+  updatePoolChips();
+  markDirty();
+}
+
+function getStateList(state) {
+  return [...$(`state-${state}`).querySelectorAll('.board-chip')].map(c => c.dataset.board);
+}
+
+function updateStateCount(state) {
+  const n = $(`state-${state}`).querySelectorAll('.board-chip').length;
+  $(`count-${state}`).textContent = `${n} board${n !== 1 ? 's' : ''}`;
+}
+
+function updatePoolChips() {
+  const used = new Set();
+  STATES.forEach(s => getStateList(s).forEach(b => used.add(b)));
+  const pool = $('poolChips');
+  pool.innerHTML = '';
+  ALL_BOARDS.forEach(b => {
+    const chip = document.createElement('div');
+    chip.className = 'pool-chip' + (used.has(b) ? ' in-use' : '');
+    chip.textContent = b;
+    chip.draggable = !used.has(b);
+    chip.dataset.board = b;
+    if (!used.has(b)) {
+      chip.addEventListener('dragstart', e => {
+        dragSource = {board: b, fromPool: true};
+        e.dataTransfer.setData('text/plain', JSON.stringify({board: b, fromPool: true}));
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+    }
+    pool.appendChild(chip);
+  });
+}
+
+function onDragOver(e, dzId) {
+  e.preventDefault();
+  if (dzId) document.getElementById(dzId)?.classList.add('drag-active');
+}
+function onDragLeave(e, dzId) {
+  if (dzId) document.getElementById(dzId)?.classList.remove('drag-active');
+}
+function onDrop(e, toState) {
+  e.preventDefault();
+  ['dz-off_day','dz-scheduled','dz-intermission','dz-post_game'].forEach(id => document.getElementById(id)?.classList.remove('drag-active'));
+  let data;
+  try { data = JSON.parse(e.dataTransfer.getData('text/plain')); } catch { return; }
+  const {board, fromState, fromPool} = data;
+
+  if (fromState && fromState !== toState) {
+    // Move from one state to another
+    const srcEl = $(`state-${fromState}`);
+    const chip = [...srcEl.querySelectorAll('.board-chip')].find(c => c.dataset.board === board);
+    if (chip) chip.remove();
+    updateStateCount(fromState);
+  } else if (fromState === toState) {
+    return; // reorder within same state — handled by chip drag
+  }
+
+  if (fromPool || fromState !== toState) {
+    const listEl = $(`state-${toState}`);
+    const newChip = makeChip(board, toState, listEl.querySelectorAll('.board-chip').length);
+    listEl.appendChild(newChip);
+    updateStateCount(toState);
+    updatePoolChips();
+    markDirty();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLAYER IDS
+// ═══════════════════════════════════════════════════════════
+
+function renderPlayerIdList(players) {
+  const list = $('playerIdList');
+  list.innerHTML = '';
+  players.forEach((p, i) => addPlayerIdRow(p));
+}
+function addPlayerIdRow(val) {
+  const list = $('playerIdList');
+  const row = document.createElement('div');
+  row.className = 'id-row';
+  row.innerHTML = `<input type="text" value="${val||''}" placeholder="e.g. 8479343" onchange="markDirty()"><button class="id-remove" onclick="this.parentElement.remove();markDirty()">×</button>`;
+  list.appendChild(row);
+}
+function addPlayerId() { addPlayerIdRow(''); markDirty(); }
+function getPlayerIds() {
+  return [...$('playerIdList').querySelectorAll('input')].map(el => el.value.trim()).filter(Boolean);
+}
+
+// ═══════════════════════════════════════════════════════════
+// STAT CATEGORIES
+// ═══════════════════════════════════════════════════════════
+
+function buildStatCategories() {
+  const grid = $('statCategoryGrid');
+  STAT_CATEGORIES.forEach(cat => {
+    const label = document.createElement('label');
+    label.className = 'check-item';
+    label.innerHTML = `<input type="checkbox" value="${cat}" onchange="markDirty()"> ${cat}`;
+    grid.appendChild(label);
+  });
+}
+function setCategories(cats) {
+  $('statCategoryGrid').querySelectorAll('input[type=checkbox]').forEach(el => {
+    el.checked = cats.includes(el.value);
+  });
+}
+function getCategories() {
+  return [...$('statCategoryGrid').querySelectorAll('input:checked')].map(el => el.value);
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATUS / SERVICE CONTROL
+// ═══════════════════════════════════════════════════════════
+
+async function refreshStatus() {
+  try {
+    const r = await fetch('/api/scoreboard/status');
+    const d = await r.json();
+    const chip = $('statusChip');
+    const label = $('statusLabel');
+    const uptime = $('statusUptime');
+
+    chip.className = 'status-chip ' + d.status;
+    label.textContent = d.status === 'running' ? 'Running' : d.status === 'stopped' ? 'Stopped' : 'Unknown';
+    uptime.textContent = d.uptime ? `· ${d.uptime}` : '';
+
+    $('statService').textContent = d.status.charAt(0).toUpperCase() + d.status.slice(1);
+    $('statService').className = 'stat-value ' + (d.status === 'running' ? 'ok' : 'bad');
+    $('statUptime').textContent = d.uptime || '—';
+
+    if (config.live_mode !== undefined) {
+      $('statLiveMode').textContent = config.live_mode ? 'Enabled' : 'Disabled';
+      $('statLiveMode').className = 'stat-value ' + (config.live_mode ? 'ok' : 'warn');
+    }
+  } catch {}
+}
+
+async function serviceControl(action) {
+  const out = $('controlOutput');
+  out.style.display = 'block';
+  out.textContent = `${action}ing scoreboard…`;
+  try {
+    const r = await fetch('/api/scoreboard/control', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action})
+    });
+    const d = await r.json();
+    out.textContent = d.output || d.message || 'Done';
+    setTimeout(refreshStatus, 1500);
+    toast(`Scoreboard ${action}ed`, 'info');
+  } catch (e) {
+    out.textContent = 'Error: ' + e.message;
+    toast('Control error: ' + e.message, 'error');
+  }
+}
+
+function startStatusPolling() {
+  refreshStatus();
+  statusInterval = setInterval(refreshStatus, 8000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOGS
+// ═══════════════════════════════════════════════════════════
+
+async function fetchLogs() {
+  try {
+    const r = await fetch(`/api/scoreboard/logs?type=${logType}&lines=250`);
+    const d = await r.json();
+    rawLogText = d.log || d.error || '';
+    renderLog(rawLogText);
+    $('logMeta').textContent = new Date().toLocaleTimeString() + ' · ' + logType;
+  } catch {}
+}
+
+function renderLog(text) {
+  const filter = $('logFilter').value.toLowerCase();
+  const pre = $('logPre');
+  const lines = text.split('\n');
+  pre.innerHTML = '';
+  lines.forEach(line => {
+    if (filter && !line.toLowerCase().includes(filter)) return;
+    const span = document.createElement('span');
+    span.className = 'log-line';
+    const lc = line.toLowerCase();
+    if (lc.includes('error') || lc.includes('traceback') || lc.includes('exception')) span.classList.add('error');
+    else if (lc.includes('warn')) span.classList.add('warn');
+    else if (lc.includes('passes validation') || lc.includes('started') || lc.includes('success')) span.classList.add('success');
+    else span.classList.add('info');
+    span.textContent = line;
+    pre.appendChild(span);
+    pre.appendChild(document.createTextNode('\n'));
+  });
+  const viewer = $('logViewer');
+  if ($('logAutoScroll').checked) viewer.scrollTop = viewer.scrollHeight;
+}
+
+function switchLogType(type) {
+  logType = type;
+  $('logTabStdout').classList.toggle('active', type === 'stdout');
+  $('logTabStderr').classList.toggle('active', type === 'stderr');
+  fetchLogs();
+}
+
+function applyLogFilter() { renderLog(rawLogText); }
+function clearLogDisplay() { $('logPre').innerHTML = ''; rawLogText = ''; }
+
+function startLogPolling() {
+  fetchLogs();
+  logInterval = setInterval(() => {
+    if (document.querySelector('[data-tab="logs"].active')) fetchLogs();
+  }, 4000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+
+function toast(msg, type = 'info') {
+  const container = $('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+</script>
+</body>
+</html>
