@@ -1964,23 +1964,19 @@ function updateStateCount(state) {
 }
 
 function updatePoolChips() {
-  const used = new Set();
-  STATES.forEach(s => getStateList(s).forEach(b => used.add(b)));
   const pool = $('poolChips');
   pool.innerHTML = '';
   ALL_BOARDS.forEach(b => {
     const chip = document.createElement('div');
-    chip.className = 'pool-chip' + (used.has(b) ? ' in-use' : '');
+    chip.className = 'pool-chip';
     chip.textContent = b;
-    chip.draggable = !used.has(b);
+    chip.draggable = true;
     chip.dataset.board = b;
-    if (!used.has(b)) {
-      chip.addEventListener('dragstart', e => {
-        dragSource = {board: b, fromPool: true};
-        e.dataTransfer.setData('text/plain', JSON.stringify({board: b, fromPool: true}));
-        e.dataTransfer.effectAllowed = 'copy';
-      });
-    }
+    chip.addEventListener('dragstart', e => {
+      dragSource = {board: b, fromPool: true};
+      e.dataTransfer.setData('text/plain', JSON.stringify({board: b, fromPool: true}));
+      e.dataTransfer.effectAllowed = 'copy';
+    });
     pool.appendChild(chip);
   });
 }
@@ -2011,6 +2007,8 @@ function onDrop(e, toState) {
 
   if (fromPool || fromState !== toState) {
     const listEl = $(`state-${toState}`);
+    const alreadyInState = [...listEl.querySelectorAll('.board-chip')].some(c => c.dataset.board === board);
+    if (alreadyInState) return;
     const newChip = makeChip(board, toState, listEl.querySelectorAll('.board-chip').length);
     listEl.appendChild(newChip);
     updateStateCount(toState);
