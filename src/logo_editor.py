@@ -932,6 +932,107 @@ def save_logo_selection():
         print(f"Error saving logo selection: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# =============================================================================
+# SCOREBOARD DASHBOARD API
+# =============================================================================
+
+MAIN_CONFIG_FILE = os.path.join(INSTALL_DIR, 'config', 'config.json')
+STDOUT_LOG = '/var/log/scoreboard.stdout.log'
+STDERR_LOG = '/var/log/scoreboard.stderr.log'
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/api/scoreboard/config', methods=['GET'])
+def get_scoreboard_config():
+    try:
+        if not os.path.exists(MAIN_CONFIG_FILE):
+            return jsonify({"error": "config.json not found"}), 404
+        with open(MAIN_CONFIG_FILE, 'r') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/scoreboard/config', methods=['POST'])
+def save_scoreboard_config():
+    try:
+        new_config = request.json
+        if not new_config:
+            return jsonify({"error": "No data received"}), 400
+
+        config_dir = os.path.join(INSTALL_DIR, 'config')
+
+        if os.path.exists(MAIN_CONFIG_FILE):
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            shutil.copy2(MAIN_CONFIG_FILE, os.path.join(config_dir, f"config.json.{timestamp}.bak"))
+            try:
+                backups = sorted([
+                    f for f in os.listdir(config_dir)
+                    if f.startswith('config.json.') and f.endswith('.bak')
+                ])
+                while len(backups) > 5:
+                    os.remove(os.path.join(config_dir, backups.pop(0)))
+            except Exception:
+                pass
+
+        with open(MAIN_CONFIG_FILE, 'w') as f:
+            json.dump(new_config, f, indent=4)
+
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/scoreboard/status', methods=['GET'])
+def scoreboard_status():
+    try:
+        result = subprocess.run(
+            ['sudo', 'supervisorctl', 'status', 'scoreboard'],
+            capture_output=True, text=True, timeout=5
+        )
+        output = result.stdout.strip()
+        running = 'RUNNING' in output
+        stopped = 'STOPPED' in output or 'EXITED' in output
+        status = 'running' if running else ('stopped' if stopped else 'unknown')
+        uptime = ''
+        if 'uptime' in output:
+            uptime = output.split('uptime')[-1].strip()
+        return jsonify({"status": status, "running": running, "output": output, "uptime": uptime})
+    except Exception as e:
+        return jsonify({"status": "unknown", "running": False, "output": str(e), "uptime": ""})
+
+@app.route('/api/scoreboard/control', methods=['POST'])
+def scoreboard_control():
+    data = request.json or {}
+    action = data.get('action')
+    if action not in ('start', 'stop', 'restart'):
+        return jsonify({"error": "Invalid action"}), 400
+    try:
+        result = subprocess.run(
+            ['sudo', 'supervisorctl', action, 'scoreboard'],
+            capture_output=True, text=True, timeout=20
+        )
+        return jsonify({"status": "success", "output": result.stdout.strip()})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/scoreboard/logs', methods=['GET'])
+def scoreboard_logs():
+    log_type = request.args.get('type', 'stdout')
+    lines = min(int(request.args.get('lines', 200)), 500)
+    log_file = STDOUT_LOG if log_type == 'stdout' else STDERR_LOG
+    try:
+        result = subprocess.run(
+            ['sudo', 'tail', f'-{lines}', log_file],
+            capture_output=True, text=True, timeout=5
+        )
+        return jsonify({"log": result.stdout, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"log": "", "error": str(e)}), 500
+
+# =============================================================================
+
 @app.route('/assets/<path:filename>')
 def serve_assets(filename):
     full_path = os.path.join(ASSETS_DIR, filename)

@@ -128,7 +128,12 @@ class MainRenderer:
         try:
             # Initialize the scoreboard. get the current status at startup
             self.data.refresh_overview()
-            self.scoreboard = Scoreboard(self.data.overview, self.data)
+            try:
+                self.scoreboard = Scoreboard(self.data.overview, self.data)
+            except AttributeError as e:
+                debug.error("render_game_day: overview not available after refresh (API down?): {}".format(e))
+                self.boards._intermission(self.data, self.matrix, self.sleepEvent)
+                return
             self.away_score = self.scoreboard.away_team.goals
             self.home_score = self.scoreboard.home_team.goals
             self.away_penalties = self.scoreboard.away_team.penalties

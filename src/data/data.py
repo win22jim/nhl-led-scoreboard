@@ -395,8 +395,13 @@ class Data:
         #        earliest_start_time = datetime.strptime(g["startTimeUTC"], '%Y-%m-%dT%H:%M:%SZ')
         debug.info('checking highest priority game')
         for g in self.pref_games:
-            game_obj = get_game(g["id"])
-            if not game_obj.is_final:
+            try:
+                game_obj = get_game(g["id"])
+                game_is_final = game_obj.is_final
+            except Exception as e:
+                debug.error("check_game_priority: failed to get game {}: {}".format(g.get("id"), e))
+                game_is_final = g.get("gameState", "") in ("FINAL", "OVER", "OFF")
+            if not game_is_final:
                 # If the game started.
                 if datetime.strptime(g["startTimeUTC"],'%Y-%m-%dT%H:%M:%SZ') <= datetime.utcnow():
                     debug.info(
@@ -506,7 +511,7 @@ class Data:
                 self.needs_refresh = False
                 self.network_issues = False
                 break
-            except (ValueError, TypeError) as error_message:
+            except Exception as error_message:
                 self.network_issues = True
                 debug.error("Failed to refresh the Overview. {} attempt remaining.".format(attempts_remaining))
                 debug.error(error_message)
@@ -626,8 +631,14 @@ class Data:
                         if self.config.seriesticker_preferred_teams_only and self.pref_series:
                             self.series_list = self.pref_series
                         for s in self.series_list:
-                            self.series.append(Series(s,self))
+                            series_obj = Series(s, self)
+                            if hasattr(series_obj, 'round_number'):
+                                self.series.append(series_obj)
+                            else:
+                                debug.error(f"Skipping series {s.get('seriesLetter', '?')} — failed to initialize (API error)")
 
+                        if not self.series:
+                            raise AttributeError("No valid series data available")
                         highest_round = self.series[-1].round_number
                         teams = []
                         for s in self.series[::-1]:

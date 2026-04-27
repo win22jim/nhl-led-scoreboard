@@ -89,6 +89,9 @@ class Seriesticker:
                 if getattr(s, "round_number", 0) >= self.data.current_round["roundNumber"]
             ]
 
+        # Drop any Series objects that failed to initialize (API error during construction)
+        playoff_series = [s for s in playoff_series if hasattr(s, 'round_number')]
+
         self.num_series = len(playoff_series)
 
         for series in playoff_series:
