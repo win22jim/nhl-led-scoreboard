@@ -3,6 +3,43 @@
 
 ![scoreboard demo](assets/images/scoreboard.jpg)
 
+---
+
+## Fork Changes — `win22jim/nhl-led-scoreboard` (`2026.x.x-beta`)
+
+This fork tracks upstream `falkyre/nhl-led-scoreboard` on the `2026.x.x-beta` branch and adds the following fixes and features on top of it.
+
+### Bug Fixes
+
+**Seriesticker crash on API failure** ([`688a7c2`](https://github.com/win22jim/nhl-led-scoreboard/commit/688a7c2))
+When the NHL API fails to return data for a specific playoff series during startup, `Series.__init__` returns early without setting any attributes. The partially-constructed object was still being added to the series list, causing an `AttributeError` crash whenever `seriesticker` tried to render it. The fix filters these invalid objects out at both the data layer and the render loop.
+
+**NHL API HTTP 500 crash loop** ([`d8223b5`](https://github.com/win22jim/nhl-led-scoreboard/commit/d8223b5))
+The play-by-play endpoint (`gamecenter/<id>/play-by-play`) intermittently returns HTTP 500 during live games. Four call sites — `GameSummaryBoard.__init__`, `Data.check_game_priority()`, `Data.refresh_overview()`, and `MainRenderer` — had no error handling, causing the scoreboard to crash and restart in a loop. All four are now wrapped with try/except so the scoreboard logs the error and continues.
+
+**rgbmatrix build fails on fresh install with Pillow 10+** ([`98aa529`](https://github.com/win22jim/nhl-led-scoreboard/commit/98aa529))
+`core.cpp` and `graphics.cpp` are not tracked in git and must be generated from `.pyx` sources before the rgbmatrix wheel can be built. Without this step, `pip install` fails with a missing file error, and any pre-compiled eggs linked against Pillow < 10 crash at runtime with `AttributeError: 'ImagingCore' object has no attribute 'unsafe_ptrs'`. The `sb-init` script now runs `cython3 --cplus` to pre-generate both files before `make build-python`.
+
+**Playoff series data uses correct API endpoint** ([`9379eee`](https://github.com/win22jim/nhl-led-scoreboard/commit/9379eee))
+Switched series information retrieval from the NHL Records API (which returns per-game records and no longer updates with playoff data) to the correct web API endpoint `/v1/schedule/playoff-series/{season}/{letter}`, which returns series summaries with `topSeedTeam`, `bottomSeedTeam`, and `neededToWin`.
+
+**Dashboard board rotation allows duplicate board assignments** ([`1d1b2d1`](https://github.com/win22jim/nhl-led-scoreboard/commit/1d1b2d1))
+In the web dashboard board rotation UI, available boards were single-use — once dropped into any state they became non-draggable. Fixed so pool boards remain draggable and duplicate prevention is scoped per-state only (matching how `config.json` actually works).
+
+### New Features
+
+**Web management dashboard** ([`62bd559`](https://github.com/win22jim/nhl-led-scoreboard/commit/62bd559))
+A full-featured dashboard served at `http://<pi-ip>:5000/dashboard` by the existing Flask server (`logo_editor.py`). Features include:
+- Live service status, uptime display, and start/stop/restart controls
+- Config editor with tabs for Preferences, Board Rotation (drag-and-drop across all 4 game states), Board Settings, Advanced I/O (MQTT, screensaver, dimmer, pushbutton)
+- Live log viewer (stdout/stderr) with auto-scroll and filtering
+- Auto-backup of `config.json` on save (5-version rotation)
+
+**Logo editor and dashboard auto-start via supervisord** ([`1cebe55`](https://github.com/win22jim/nhl-led-scoreboard/commit/1cebe55))
+Adds `scripts/supervisor/logo-editor.conf` so the Flask server (logo editor + dashboard) starts automatically with the Pi and restarts on failure. `sb-init` now installs the supervisor config on fresh installs so no manual setup is required.
+
+---
+
 # Releases
 
 Click on button to go to release notes.
