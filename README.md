@@ -5,9 +5,9 @@
 
 ---
 
-## Fork Changes — `win22jim/nhl-led-scoreboard` (`2026.x.x-beta`)
+## Changes in this Fork
 
-This fork tracks upstream `falkyre/nhl-led-scoreboard` on the `2026.x.x-beta` branch and adds the following fixes and features on top of it.
+The following bug fixes and features have been contributed on top of upstream `falkyre/nhl-led-scoreboard`.
 
 ### Bug Fixes
 
