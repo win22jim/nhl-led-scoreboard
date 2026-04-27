@@ -631,8 +631,14 @@ class Data:
                         if self.config.seriesticker_preferred_teams_only and self.pref_series:
                             self.series_list = self.pref_series
                         for s in self.series_list:
-                            self.series.append(Series(s,self))
+                            series_obj = Series(s, self)
+                            if hasattr(series_obj, 'round_number'):
+                                self.series.append(series_obj)
+                            else:
+                                debug.error(f"Skipping series {s.get('seriesLetter', '?')} — failed to initialize (API error)")
 
+                        if not self.series:
+                            raise AttributeError("No valid series data available")
                         highest_round = self.series[-1].round_number
                         teams = []
                         for s in self.series[::-1]:
