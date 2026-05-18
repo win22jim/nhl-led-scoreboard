@@ -6,7 +6,7 @@ These classes provide a clean, typed interface to NHL API responses.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -403,12 +403,17 @@ class Game:
         except ValueError:
             state = GameState.FUTURE
 
-        # Parse game date - prefer startTimeUTC which has actual time, fallback to gameDate
+        # Parse game date - prefer startTimeUTC which has actual time, fallback to gameDate.
+        # TBD playoff games come through with date-only `gameDate` and no `startTimeUTC`, which
+        # yields a naive datetime; always normalize to tz-aware UTC so downstream comparisons
+        # against `datetime.now(timezone.utc)` don't raise TypeError.
         game_date_str = data.get('startTimeUTC', data.get('gameDate', ''))
         try:
             game_date = datetime.fromisoformat(game_date_str.replace('Z', '+00:00'))
         except (ValueError, AttributeError):
-            game_date = datetime.now()
+            game_date = datetime.now(timezone.utc)
+        if game_date.tzinfo is None:
+            game_date = game_date.replace(tzinfo=timezone.utc)
 
         # Parse period if in progress
         period = None
