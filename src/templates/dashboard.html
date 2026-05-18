@@ -2377,7 +2377,11 @@ function updateStateCount(state) {
 function updatePoolChips() {
   const pool = $('poolChips');
   pool.innerHTML = '';
-  AVAILABLE_BOARDS.forEach(meta => {
+  // Hide system boards (screensaver, wxalert, pbdisplay): they're invoked
+  // by interrupts (idle hours, weather alerts, push-button presses) and
+  // putting them in a rotation slot can lock the matrix. They still have
+  // settings panels in the Boards tab — only the draggable chip is hidden.
+  AVAILABLE_BOARDS.filter(meta => !meta.system).forEach(meta => {
     const id = meta.id;
     const chip = document.createElement('div');
     chip.className = 'pool-chip';
