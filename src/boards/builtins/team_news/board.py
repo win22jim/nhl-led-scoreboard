@@ -13,6 +13,7 @@ import time
 
 from boards.base_board import BoardBase
 from boards.builtins._external_fetch import fetch_json
+from boards.builtins._text import sanitize, scroll_line, text_width
 
 from . import __board_name__, __description__, __version__
 
@@ -82,7 +83,13 @@ class TeamNewsBoard(BoardBase):
             summary = it.get("summary") or ""
             if not headline:
                 continue
-            parsed.append({"headline": headline.strip(), "summary": summary.strip()})
+            # Sanitize at ingest so curly quotes, em-dashes, accented names,
+            # and ellipsis (all common in NHL editorial copy) don't render
+            # as glyph boxes in the pixel font.
+            parsed.append({
+                "headline": sanitize(headline).strip(),
+                "summary": sanitize(summary).strip(),
+            })
         self._cache_items = parsed
         self._cache_team_id = team_id
         self._cache_ts = time.time()
@@ -106,38 +113,53 @@ class TeamNewsBoard(BoardBase):
             self._render_empty()
 
     def _render_item(self, item: dict):
+        headline = item.get("headline", "") or ""
+        summary = item.get("summary", "") or ""
+
+        # Initial frame: header + first slice of the headline so the matrix
+        # isn't blank for the half-second before the scroll starts.
         self.matrix.clear()
-        self.matrix.draw_text((1, 0), "TEAM NEWS", font=self.font, fill=(120, 180, 255))
-        headline = item.get("headline", "")
-        summary = item.get("summary", "")
-        self._draw_wrapped(headline, x=1, y=9, max_lines=3, color=(255, 255, 255))
+        self._draw_header()
+        if headline:
+            self.matrix.draw_text((1, 12), headline[:32], font=self.font, fill=(255, 255, 255))
         if summary:
-            self._draw_wrapped(summary, x=1, y=9 + 3 * 7, max_lines=3, color=(170, 170, 170))
+            self.matrix.draw_text((1, 22), summary[:32], font=self.font, fill=(170, 170, 170))
         self.matrix.render()
-        self.sleepEvent.wait(self.rotation_rate)
+        self.sleepEvent.wait(0.6)
+
+        # Scroll the headline horizontally across the middle region, then the
+        # summary below it. Static header is repainted each frame via the
+        # redraw callback so the scroll-rect clear doesn't wipe it.
+        def _repaint_header():
+            self._draw_header()
+
+        if headline and text_width(self.font, headline) > self.matrix.width - 2:
+            scroll_line(
+                self.matrix, self.sleepEvent, self.font,
+                headline, y=12, color=(255, 255, 255),
+                region=(0, 11, self.matrix.width, 19),
+                redraw_static=_repaint_header,
+            )
+        if summary and text_width(self.font, summary) > self.matrix.width - 2:
+            scroll_line(
+                self.matrix, self.sleepEvent, self.font,
+                summary, y=22, color=(170, 170, 170),
+                region=(0, 21, self.matrix.width, 29),
+                redraw_static=_repaint_header,
+            )
+
+        # Hold the final frame briefly so the rotation feels paced. Without
+        # this the next item starts the moment the scroll exits.
+        self.sleepEvent.wait(min(self.rotation_rate, 2.0))
+
+    def _draw_header(self):
+        self.matrix.draw_rectangle((0, 0), (self.matrix.width, 9), fill=(0, 0, 0))
+        self.matrix.draw_text((1, 0), "TEAM NEWS", font=self.font, fill=(120, 180, 255))
 
     def _render_empty(self):
         self.matrix.clear()
-        self.matrix.draw_text((1, 0), "TEAM NEWS", font=self.font, fill=(120, 180, 255))
+        self._draw_header()
         msg = "no team" if self._resolve_team_id() is None else "no data"
         self.matrix.draw_text((1, 12), msg, font=self.font, fill=(150, 150, 150))
         self.matrix.render()
         self.sleepEvent.wait(self.rotation_rate)
-
-    def _draw_wrapped(self, text: str, x: int, y: int, max_lines: int, color):
-        line_budget = 18
-        words = text.split()
-        line = ""
-        lines = []
-        for w in words:
-            candidate = (line + " " + w).strip()
-            if len(candidate) > line_budget:
-                if line:
-                    lines.append(line)
-                line = w
-            else:
-                line = candidate
-        if line:
-            lines.append(line)
-        for i, ln in enumerate(lines[:max_lines]):
-            self.matrix.draw_text((x, y + i * 7), ln, font=self.font, fill=color)

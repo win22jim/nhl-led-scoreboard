@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta
 from PIL import Image, ImageDraw
 
 from boards.base_board import BoardBase
+from boards.builtins._text import sanitize
 
 from . import __board_name__, __description__, __version__
 
@@ -195,7 +196,10 @@ class EventCountdownBoard(BoardBase):
         self.board_version = __version__
         self.board_description = __description__
 
-        self.title = (self.get_config_value("title", "MY EVENT") or "").upper().strip()
+        # Sanitize: users may paste curly quotes / accented characters from
+        # other apps into the title field and the pixel font can't render
+        # them — they'd show as glyph boxes on the matrix.
+        self.title = sanitize(self.get_config_value("title", "MY EVENT") or "").upper().strip()
         self.target_date_str = (self.get_config_value("target_date", "") or "").strip()
         self.target_time_str = (self.get_config_value("target_time", "") or "").strip()
         icon_name = (self.get_config_value("icon", "star") or "star").lower()

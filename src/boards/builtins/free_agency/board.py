@@ -15,6 +15,7 @@ import time
 
 from boards.base_board import BoardBase
 from boards.builtins._external_fetch import fetch_text
+from boards.builtins._text import sanitize
 
 from . import __board_name__, __description__, __version__
 
@@ -113,7 +114,9 @@ class FreeAgencyBoard(BoardBase):
                         break
                 if not player:
                     continue
-                target.append({"player": player[:18], "team": team})
+                # Sanitize: Spotrac scrapes carry curly quotes around team
+                # nicknames and accented player surnames (Forsberg, Couture).
+                target.append({"player": sanitize(player)[:18], "team": team})
                 if len(target) >= self.max_entries * 4:  # over-fetch then filter
                     break
         self._cache_signed = signed

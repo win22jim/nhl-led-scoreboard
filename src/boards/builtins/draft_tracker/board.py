@@ -16,6 +16,7 @@ import time
 
 from boards.base_board import BoardBase
 from boards.builtins._external_fetch import fetch_json
+from boards.builtins._text import sanitize
 
 from . import __board_name__, __description__, __version__
 
@@ -127,7 +128,9 @@ class DraftTrackerBoard(BoardBase):
             pick_num = p.get("overallPick", "?")
             first = (p.get("firstName") or {}).get("default", "") or ""
             last = (p.get("lastName") or {}).get("default", "") or ""
-            name = (last or first or "TBD").upper()
+            # Sanitize: NHL draft prospects often have accented names (Couture,
+            # Vejmelka, Lehkonen, etc.) that don't render in the pixel font.
+            name = sanitize((last or first or "TBD")).upper()
             line = f"#{pick_num} {team_ab} {name}"[:24]
             color = (255, 200, 0) if team_ab in pref_abbrevs else (255, 255, 255)
             self.matrix.draw_text((1, y), line, font=self.font, fill=color)
@@ -147,7 +150,7 @@ class DraftTrackerBoard(BoardBase):
         y = 9
         for r in rankings:
             rank = r.get("finalRank") or r.get("midtermRank") or "?"
-            last = (r.get("lastName") or "").upper()
+            last = sanitize(r.get("lastName") or "").upper()
             pos = r.get("positionCode") or ""
             line = f"#{rank} {last} {pos}"[:24]
             self.matrix.draw_text((1, y), line, font=self.font, fill=(255, 255, 255))

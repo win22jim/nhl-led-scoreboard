@@ -20,6 +20,7 @@ import time
 
 from boards.base_board import BoardBase
 from boards.builtins._external_fetch import fetch_json
+from boards.builtins._text import sanitize, scroll_line, text_width
 
 from . import __board_name__, __description__, __version__
 
@@ -121,20 +122,41 @@ class AwardsBoard(BoardBase):
             self._render_empty()
 
     def _render_trophy(self, trophy: dict):
-        self.matrix.clear()
-        short = (trophy.get("shortName") or "TROPHY").upper()
-        self.matrix.draw_text((1, 0), short[:18], font=self.font, fill=(255, 200, 0))
+        short = sanitize((trophy.get("shortName") or "TROPHY").upper())
         season, winner = _parse_winner(trophy.get("description", ""))
+        season = sanitize(season or "")
+        winner = sanitize(winner or "")
+        brief = sanitize(_strip_html(trophy.get("briefDescription", "") or ""))
+
+        def repaint_header():
+            self.matrix.draw_rectangle((0, 0), (self.matrix.width, 9), fill=(0, 0, 0))
+            self.matrix.draw_text((1, 0), short[:24], font=self.font, fill=(255, 200, 0))
+
+        # Initial frame.
+        self.matrix.clear()
+        repaint_header()
         if winner:
-            self.matrix.draw_text((1, 9), (season or "")[:12], font=self.font, fill=(150, 150, 150))
-            # Winner can be long ("The Florida Panthers"). Wrap roughly.
-            self._draw_wrapped(winner, x=1, y=17, max_lines=3, color=(255, 255, 255))
+            self.matrix.draw_text((1, 11), season[:14], font=self.font, fill=(150, 150, 150))
+            self.matrix.draw_text((1, 20), winner[:24], font=self.font, fill=(255, 255, 255))
         else:
-            # Fall back to the briefDescription if no winner parses.
-            brief = _strip_html(trophy.get("briefDescription", "") or "")
-            self._draw_wrapped(brief[:60], x=1, y=9, max_lines=4, color=(180, 180, 180))
+            self.matrix.draw_text((1, 11), brief[:24], font=self.font, fill=(180, 180, 180))
         self.matrix.render()
-        self.sleepEvent.wait(self.rotation_rate)
+        self.sleepEvent.wait(0.6)
+
+        # Scroll the long line if it doesn't fit. Winner string is the
+        # interesting payload when present ("The Florida Panthers", etc.);
+        # otherwise scroll the brief description.
+        long_text = winner if winner else brief
+        if long_text and text_width(self.font, long_text) > self.matrix.width - 2:
+            y = 20 if winner else 11
+            scroll_line(
+                self.matrix, self.sleepEvent, self.font,
+                long_text, y=y, color=(255, 255, 255) if winner else (180, 180, 180),
+                region=(0, y - 1, self.matrix.width, y + 8),
+                redraw_static=repaint_header,
+            )
+        # Pace the rotation regardless of whether we scrolled.
+        self.sleepEvent.wait(min(self.rotation_rate, 2.0))
 
     def _render_empty(self):
         self.matrix.clear()
@@ -142,23 +164,3 @@ class AwardsBoard(BoardBase):
         self.matrix.draw_text((1, 12), "no data", font=self.font, fill=(150, 150, 150))
         self.matrix.render()
         self.sleepEvent.wait(self.rotation_rate)
-
-    def _draw_wrapped(self, text: str, x: int, y: int, max_lines: int, color):
-        """Naive char-budget wrap. Width tuned to the 64-wide layout (~18 chars
-        per line at the 04B_24 font); 128-wide just looks half-empty."""
-        line_budget = 18
-        words = text.split()
-        line = ""
-        lines = []
-        for w in words:
-            candidate = (line + " " + w).strip()
-            if len(candidate) > line_budget:
-                if line:
-                    lines.append(line)
-                line = w
-            else:
-                line = candidate
-        if line:
-            lines.append(line)
-        for i, ln in enumerate(lines[:max_lines]):
-            self.matrix.draw_text((x, y + i * 7), ln, font=self.font, fill=color)

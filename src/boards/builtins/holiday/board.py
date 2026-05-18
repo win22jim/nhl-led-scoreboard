@@ -21,6 +21,7 @@ from datetime import date, timedelta
 from PIL import Image, ImageDraw
 
 from boards.base_board import BoardBase
+from boards.builtins._text import sanitize
 
 from . import __board_name__, __description__, __version__
 
@@ -315,7 +316,9 @@ class HolidayBoard(BoardBase):
         if self.country not in ("us", "ca"):
             self.country = "us"
         self.skip_non_holidays = bool(self.get_config_value("skip_non_holidays", True))
-        self.non_holiday_message = str(self.get_config_value("non_holiday_message", "HAVE A GREAT DAY"))
+        # Sanitize the user-configurable message so curly quotes pasted from
+        # other apps don't render as glyph boxes on the matrix.
+        self.non_holiday_message = sanitize(self.get_config_value("non_holiday_message", "HAVE A GREAT DAY"))
         self.duration = max(2, int(self.get_config_value("duration", 8)))
 
         self.font = data.config.layout.font
