@@ -131,19 +131,47 @@ class FreeAgencyBoard(BoardBase):
             debug.error(f"FreeAgencyBoard: refresh failed: {e}", exc_info=True)
 
         try:
-            entries = self._select_entries()
+            entries, effective_mode = self._select_entries_with_fallback()
             if not entries:
                 self._render_empty()
                 return
-            self._render_entries(entries)
+            self._render_entries(entries, effective_mode)
         except Exception as e:
             debug.error(f"FreeAgencyBoard: render failed: {e}", exc_info=True)
             self._render_empty()
 
-    def _select_entries(self):
+    def _select_entries_with_fallback(self):
+        """Return (entries, effective_mode).
+
+        The configured mode is honored first. If it returns nothing (the
+        common case for `signings` outside of the July signing rush), fall
+        back to whichever bucket has data so the board has something useful
+        to show year-round. effective_mode tells the renderer which header
+        label to use so the user can tell what they're looking at.
+        """
+        primary = self._pick(self.mode)
+        if primary:
+            return primary, self.mode
+        # Fallback chain: signings -> available -> both.
         if self.mode == "signings":
-            base = list(self._cache_signed)
+            for fb in ("available", "both"):
+                entries = self._pick(fb)
+                if entries:
+                    return entries, fb
         elif self.mode == "available":
+            for fb in ("signings", "both"):
+                entries = self._pick(fb)
+                if entries:
+                    return entries, fb
+        else:  # mode == 'both'
+            # Already combined; nothing else to try.
+            pass
+        return [], self.mode
+
+    def _pick(self, mode):
+        if mode == "signings":
+            base = list(self._cache_signed)
+        elif mode == "available":
             base = list(self._cache_available)
         else:
             base = list(self._cache_signed) + list(self._cache_available)
@@ -153,13 +181,20 @@ class FreeAgencyBoard(BoardBase):
                 base = [e for e in base if e.get("team") in abbrevs]
         return base[: self.max_entries]
 
-    def _render_entries(self, entries):
+    _HEADERS = {
+        "signings": "FA SIGNINGS",
+        "available": "TOP FAs",
+        "both": "FREE AGENCY",
+    }
+
+    def _render_entries(self, entries, effective_mode):
         self.matrix.clear()
-        header = {
-            "signings": "FA SIGNINGS",
-            "available": "TOP FAs",
-            "both": "FREE AGENCY",
-        }.get(self.mode, "FREE AGENCY")
+        header = self._HEADERS.get(effective_mode, "FREE AGENCY")
+        # If we fell back away from the user's chosen mode, prefix a small
+        # marker so they can tell — e.g. they asked for SIGNINGS but no
+        # signings exist yet, we're showing the top remaining list instead.
+        if effective_mode != self.mode:
+            debug.debug(f"FreeAgencyBoard: fell back from {self.mode} to {effective_mode}")
         self.matrix.draw_text((1, 0), header[:18], font=self.font, fill=(120, 220, 120))
         y = 9
         for e in entries:
