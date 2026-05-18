@@ -84,6 +84,16 @@ def _team_alive_in_playoffs(data) -> bool:
 def detect_phase(data) -> SeasonPhase:
     """Classify the current moment relative to the NHL season.
 
+    Decision tree (first match wins):
+      1. is_playoff window AND playoffs.rounds populated  -> POST_SEASON_*
+         (team alive in any series -> ACTIVE, otherwise ELIMINATED)
+      2. regular_season_start <= today <= regular_season_end -> REGULAR_SEASON
+      3. otherwise -> OFF_SEASON
+
+    Note: status.is_offseason() means "outside the entire season window
+    including playoffs" — it returns False during the playoffs, so we can't
+    use it to gate the post-season branch. We check is_playoff first instead.
+
     All branches are defensive — if NHL API state isn't loaded yet, or any
     accessor throws, we return REGULAR_SEASON as the safe default. The
     renderer treats REGULAR_SEASON as "use boards_off_day", which is what
@@ -100,29 +110,28 @@ def detect_phase(data) -> SeasonPhase:
     if status is None:
         return SeasonPhase.REGULAR_SEASON
 
+    # Step 1: are we in the playoff window AND playoff data is loaded?
+    try:
+        in_playoffs = bool(playoffs) and status.is_playoff(today, playoffs)
+    except Exception as e:
+        debug.warning(f"detect_phase: is_playoff raised: {e}")
+        in_playoffs = False
+
+    if in_playoffs:
+        try:
+            alive = _team_alive_in_playoffs(data)
+        except Exception as e:
+            debug.warning(f"detect_phase: alive check raised, defaulting to POST_SEASON_ELIMINATED: {e}")
+            return SeasonPhase.POST_SEASON_ELIMINATED
+        return SeasonPhase.POST_SEASON_ACTIVE if alive else SeasonPhase.POST_SEASON_ELIMINATED
+
+    # Step 2 / 3: regular vs off-season. is_offseason returns True only when
+    # we're entirely outside the season window (before regular season start
+    # or after season end).
     try:
         in_offseason = status.is_offseason(today)
     except Exception as e:
         debug.warning(f"detect_phase: is_offseason raised, defaulting to REGULAR_SEASON: {e}")
         return SeasonPhase.REGULAR_SEASON
 
-    if not in_offseason:
-        return SeasonPhase.REGULAR_SEASON
-
-    # We're outside the regular season window. Distinguish post-season vs off-season.
-    try:
-        in_playoffs = bool(playoffs) and status.is_playoff(today, playoffs)
-    except Exception as e:
-        debug.warning(f"detect_phase: is_playoff raised, defaulting to OFF_SEASON: {e}")
-        return SeasonPhase.OFF_SEASON
-
-    if not in_playoffs:
-        return SeasonPhase.OFF_SEASON
-
-    try:
-        alive = _team_alive_in_playoffs(data)
-    except Exception as e:
-        debug.warning(f"detect_phase: alive check raised, defaulting to POST_SEASON_ELIMINATED: {e}")
-        return SeasonPhase.POST_SEASON_ELIMINATED
-
-    return SeasonPhase.POST_SEASON_ACTIVE if alive else SeasonPhase.POST_SEASON_ELIMINATED
+    return SeasonPhase.OFF_SEASON if in_offseason else SeasonPhase.REGULAR_SEASON

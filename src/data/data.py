@@ -238,9 +238,15 @@ class Data:
         playoff data refreshes so the renderer's off-day routing picks the
         right state list.
         """
+        previous = getattr(self, "season_phase", None)
         try:
             self.season_phase = detect_phase(self)
-            debug.debug(f"Season phase: {self.season_phase}")
+            # Log at INFO on first set and on transitions; DEBUG otherwise so
+            # frequent refreshes don't spam the log.
+            if previous != self.season_phase:
+                debug.info(f"Season phase: {self.season_phase} (was {previous})")
+            else:
+                debug.debug(f"Season phase: {self.season_phase}")
         except Exception as e:
             debug.error(f"refresh_season_phase failed, keeping previous value: {e}")
 
