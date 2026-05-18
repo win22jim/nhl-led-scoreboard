@@ -669,6 +669,11 @@
             <div class="stat-label">Live Mode</div>
             <div class="stat-value" id="statLiveMode">—</div>
           </div>
+          <div class="stat-box" title="Auto-detected from NHL schedule + playoff data. Drives which board list the renderer uses on off-days.">
+            <div class="stat-label">Season Phase</div>
+            <div class="stat-value" id="statPhase" style="font-size:15px;">—</div>
+            <div class="stat-hint" id="statPhaseHint" style="font-size:10px;color:var(--text-dim);margin-top:3px;"></div>
+          </div>
         </div>
 
         <div class="card">
@@ -2534,6 +2539,33 @@ async function refreshStatus() {
     if (config.live_mode !== undefined) {
       $('statLiveMode').textContent = config.live_mode ? 'Enabled' : 'Disabled';
       $('statLiveMode').className = 'stat-value ' + (config.live_mode ? 'ok' : 'warn');
+    }
+
+    // Season phase — populated from the runtime status file the scoreboard
+    // writes after each playoff refresh. May be missing right after a service
+    // start (before the first refresh_daily completes); render a dash then.
+    const phaseEl = $('statPhase');
+    const phaseHint = $('statPhaseHint');
+    if (phaseEl) {
+      if (d.phase && d.phase.id) {
+        phaseEl.textContent = `${d.phase.icon || '•'} ${d.phase.label || d.phase.id}`;
+        phaseEl.className = 'stat-value';
+        if (phaseHint) {
+          const parts = [];
+          if (d.phase.season_id) parts.push(`Season ${d.phase.season_id}`);
+          if (d.phase.updated_at) {
+            try {
+              const t = new Date(d.phase.updated_at);
+              parts.push(`updated ${t.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`);
+            } catch {}
+          }
+          phaseHint.textContent = parts.join(' · ');
+        }
+      } else {
+        phaseEl.textContent = '—';
+        phaseEl.className = 'stat-value';
+        if (phaseHint) phaseHint.textContent = d.status === 'running' ? 'waiting for first data refresh…' : '';
+      }
     }
   } catch {}
 }

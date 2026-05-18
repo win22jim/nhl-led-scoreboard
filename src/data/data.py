@@ -4,6 +4,7 @@
         single one.
 """
 
+import json
 import logging
 from datetime import date, datetime, timedelta
 from time import sleep
@@ -249,6 +250,53 @@ class Data:
                 debug.debug(f"Season phase: {self.season_phase}")
         except Exception as e:
             debug.error(f"refresh_season_phase failed, keeping previous value: {e}")
+        # Publish runtime status for the web dashboard (Flask runs in a separate
+        # process and can't read `data.season_phase` directly, so we drop a
+        # small JSON file in a known location it can read.) Failure here must
+        # never affect the renderer.
+        try:
+            self._publish_runtime_status()
+        except Exception as e:
+            debug.warning(f"refresh_season_phase: could not write runtime status: {e}")
+
+    def _publish_runtime_status(self):
+        """Write a small JSON snapshot of phase + season info to /tmp so the
+        web dashboard can show it. Atomic write via tempfile.NamedTemporaryFile
+        + os.replace so a concurrent Flask read never sees half a file."""
+        import os
+        import tempfile
+        from datetime import datetime as _dt
+
+        phase = getattr(self, "season_phase", None)
+        status = getattr(self, "status", None)
+        season_id = getattr(status, "season_id", None) if status else None
+        season_info = getattr(status, "season_info", {}) if status else {}
+
+        payload = {
+            "phase": phase.value if hasattr(phase, "value") else (str(phase) if phase else None),
+            "updated_at": _dt.utcnow().isoformat() + "Z",
+            "season_id": season_id,
+            "regular_season_start": (season_info or {}).get("regularSeasonStartDate"),
+            "regular_season_end": (season_info or {}).get("regularSeasonEndDate"),
+            "season_end": (season_info or {}).get("seasonEndDate"),
+            "preferred_team_ids": list(getattr(self, "pref_teams", []) or []),
+        }
+        target = "/tmp/nhl-scoreboard-runtime.json"
+        # Write to a sibling temp file then atomic-rename onto the target so
+        # readers never see a partial file.
+        fd, tmp_path = tempfile.mkstemp(prefix=".nhl-runtime-", dir="/tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(payload, f)
+            os.replace(tmp_path, target)
+        except Exception:
+            # Best-effort cleanup if mkstemp succeeded but rename failed.
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+            raise
 
     #
     # Date

@@ -984,6 +984,34 @@ def save_scoreboard_config():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Runtime status file written by the scoreboard process (Data._publish_runtime_status).
+# Lives in /tmp because both the scoreboard and Flask run as `pi` and we don't
+# need persistence — the scoreboard rewrites it within ~60s of start.
+_RUNTIME_STATUS_PATH = "/tmp/nhl-scoreboard-runtime.json"
+
+_PHASE_DISPLAY = {
+    "regular_season": {"label": "Regular Season", "icon": "🏒"},
+    "post_season_active": {"label": "Playoffs — Team In", "icon": "🏆"},
+    "post_season_eliminated": {"label": "Playoffs — Team Out", "icon": "🥲"},
+    "off_season": {"label": "Off Season", "icon": "☀️"},
+}
+
+
+def _read_runtime_status():
+    """Return the latest runtime snapshot from the scoreboard process, or
+    None if the file is missing / malformed / stale."""
+    try:
+        if not os.path.exists(_RUNTIME_STATUS_PATH):
+            return None
+        with open(_RUNTIME_STATUS_PATH, "r") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return None
+        return data
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 @app.route('/api/scoreboard/status', methods=['GET'])
 def scoreboard_status():
     try:
@@ -998,7 +1026,25 @@ def scoreboard_status():
         uptime = ''
         if 'uptime' in output:
             uptime = output.split('uptime')[-1].strip()
-        return jsonify({"status": status, "running": running, "output": output, "uptime": uptime})
+        resp = {"status": status, "running": running, "output": output, "uptime": uptime}
+        # Attach phase + season window from the runtime status file the
+        # scoreboard writes after every refresh. Missing fields are harmless
+        # — the dashboard renders dashes when it doesn't have data.
+        rs = _read_runtime_status()
+        if rs:
+            phase_id = rs.get("phase")
+            disp = _PHASE_DISPLAY.get(phase_id, {})
+            resp["phase"] = {
+                "id": phase_id,
+                "label": disp.get("label", phase_id or "Unknown"),
+                "icon": disp.get("icon", "•"),
+                "updated_at": rs.get("updated_at"),
+                "season_id": rs.get("season_id"),
+                "regular_season_start": rs.get("regular_season_start"),
+                "regular_season_end": rs.get("regular_season_end"),
+                "season_end": rs.get("season_end"),
+            }
+        return jsonify(resp)
     except Exception as e:
         return jsonify({"status": "unknown", "running": False, "output": str(e), "uptime": ""})
 
