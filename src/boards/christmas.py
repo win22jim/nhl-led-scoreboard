@@ -27,15 +27,32 @@ class Christmas:
         self.scroll_pos = self.matrix.width
 
     def draw(self):
-        
+
         debug.info("Christmas board launched")
-        
+
         self.calc_days_to_xmas()
 
         #for testing purposes
         #self.days_to_xmas = 0
 
         debug.info(str(self.days_to_xmas) + " days to xmas")
+
+        # Optional "skip when too far out" guard. Reads
+        # config.json -> boards.christmas.skip_if_more_than_days. Default 30
+        # so the board only shows during December; set to a high value (e.g.
+        # 365) or 0/false to disable the skip and show year-round.
+        try:
+            boards_cfg = getattr(self.data.config, "_boards_raw", {}) or {}
+            threshold = boards_cfg.get("christmas", {}).get("skip_if_more_than_days", 30)
+            threshold = int(threshold) if threshold else 0
+        except Exception:
+            threshold = 30
+        if threshold and self.days_to_xmas > threshold:
+            debug.info(f"Christmas board skipped: {self.days_to_xmas}d > threshold {threshold}d")
+            # Brief pause so the rotation loop advances normally rather than
+            # spinning on a no-op render.
+            self.sleepEvent.wait(0.1)
+            return
 
         if self.days_to_xmas == 0:
             #today is christmas

@@ -144,6 +144,18 @@
 			"skip_non_holidays": true,
 			"non_holiday_message": "HAVE A GREAT DAY",
 			"duration": 8
+		},
+		"christmas": {
+			"skip_if_more_than_days": 30
+		},
+		"event_countdown": {
+			"title": "MY EVENT",
+			"target_date": "",
+			"target_time": "",
+			"icon": "star",
+			"skip_if_more_than_days": 0,
+			"skip_after_event": true,
+			"duration": 8
 		}
 	},
 	"sbio": {

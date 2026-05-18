@@ -31,6 +31,10 @@ In the web dashboard board rotation UI, available boards were single-use — onc
 
 ### New Features
 
+**Event Countdown board + Christmas skip threshold**
+- New `event_countdown` board: configure a title, date, optional time, and pick one of 12 curated icons (star, heart, gift, trophy, calendar, clock, fire, rocket, puck, balloon, flag, none). Auto-skips after the event passes; optional "skip if more than N days out" so annual events don't sit in the rotation year-round.
+- The existing Christmas Countdown board now has a `skip_if_more_than_days` setting (default 30) so it only appears in December instead of running 11 months a year.
+
 **Holiday board, collapsible state cards, and richer board hover tooltips**
 - New `holiday` board: themed icon + greeting on US/CA holidays, configurable to skip non-holidays (default) or show a generic message daily. Graphics are programmatic — no asset downloads required.
 - Board Rotation state columns are now collapsible — click the header to fold a state away. Collapsed state persists across reloads.
@@ -102,6 +106,17 @@ Detection is fully automatic from the NHL playoff carousel and schedule — ther
   - *Headlines* (1–20, default 5), *Refresh (minutes)* (default 30).
   - Replaces the retired NHL team RSS feeds. Source: NHL Forge content API (`forge-dapi.d3.nhle.com`).
   - The team is whichever appears first in your Preferences → Preferred Teams list.
+
+- **Christmas Countdown (`christmas`)** — The existing Christmas board, now configurable to skip itself when too far out.
+  - *Skip if more than N days away* (default 30): suppresses the board outside the configured window so it only appears in December. Set to `0` to show year-round.
+
+- **Event Countdown (`event_countdown`)** — Counts down to a user-configured event (birthday, anniversary, vacation, road trip…).
+  - *Title*: short label shown beside the count (e.g. `VEGAS TRIP`).
+  - *Target Date*: `YYYY-MM-DD`. Use the dashboard date picker.
+  - *Target Time* (optional): when set, the day-of rendering shows hours/minutes remaining instead of just `TODAY`.
+  - *Icon*: pick from a curated set (star, heart, gift, trophy, calendar, clock, fire, rocket, puck, balloon, flag, or no icon). Drawn programmatically — emoji/uploaded images aren't supported here because pixel-font LED matrices can't render them crisply at this size.
+  - *Skip if more than N days away* (default 0 = never skip).
+  - *Skip after event has passed* (default ON): once the date passes, the board hides itself so old events don't sit in the rotation.
 
 - **Holiday (`holiday`)** — Shows a themed icon and "Happy {Holiday}" greeting on supported holidays.
   - *Country*: `United States` (default) or `Canada`. Picks the calendar — shared holidays (Christmas, Valentine's, Easter, Halloween, New Year) appear in both.

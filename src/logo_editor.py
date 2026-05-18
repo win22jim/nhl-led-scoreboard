@@ -1042,7 +1042,7 @@ _LEGACY_BOARDS = [
     {"id": "wxalert", "name": "Weather Alerts", "description": "Severe-weather alert banner from NWS or Environment Canada", "kind": "legacy"},
     {"id": "wxforecast", "name": "Weather Forecast", "description": "Multi-day weather forecast for the configured location", "kind": "legacy"},
     {"id": "screensaver", "name": "Screensaver", "description": "Idle-mode animation shown during configured quiet hours", "kind": "legacy"},
-    {"id": "christmas", "name": "Christmas Countdown", "description": "Days until December 25, plus a festive animation on the day", "kind": "legacy"},
+    {"id": "christmas", "name": "Christmas Countdown", "description": "Days until December 25, plus a festive animation on the day. Skips by default when more than 30 days out — configurable.", "kind": "legacy"},
     {"id": "player_stats", "name": "Player Stats", "description": "Season stats for a configured list of players (incl. goalies)", "kind": "legacy"},
     {"id": "ovi_tracker", "name": "Ovechkin Tracker", "description": "Alexander Ovechkin career goals chase (only meaningful for WSH fans)", "kind": "legacy"},
 ]

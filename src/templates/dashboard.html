@@ -1142,6 +1142,85 @@
           </div>
         </div>
 
+        <!-- CHRISTMAS COUNTDOWN -->
+        <div class="board-accordion" id="acc-christmas">
+          <div class="accordion-header" onclick="toggleAccordion('acc-christmas')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Christmas Countdown</div>
+              <span class="board-tag">christmas</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field" style="max-width:240px;">
+              <label class="field-label">Skip if more than N days away</label>
+              <input type="number" id="b-christmas-skip_if_more_than_days" min="0" max="365" onchange="markDirty()">
+              <div class="field-hint" style="margin-top:4px;">Board is skipped when the countdown exceeds this many days. Default 30 — so the board only appears in December. Set to <code>0</code> to disable skipping and show year-round.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EVENT COUNTDOWN -->
+        <div class="board-accordion" id="acc-event_countdown">
+          <div class="accordion-header" onclick="toggleAccordion('acc-event_countdown')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Event Countdown</div>
+              <span class="board-tag">event_countdown</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field">
+              <label class="field-label">Title <span style="color:var(--text-dim)">(short, shown on the matrix)</span></label>
+              <input type="text" id="b-event_countdown-title" maxlength="40" placeholder="MY EVENT" onchange="markDirty()">
+            </div>
+            <div class="field-row" style="margin-top:10px;">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Target Date</label>
+                <input type="date" id="b-event_countdown-target_date" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label class="field-label">Target Time <span style="color:var(--text-dim)">(optional)</span></label>
+                <input type="time" id="b-event_countdown-target_time" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row" style="margin-top:10px;">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Icon</label>
+                <select id="b-event_countdown-icon" onchange="markDirty()">
+                  <option value="star">⭐ Star</option>
+                  <option value="heart">❤ Heart</option>
+                  <option value="gift">🎁 Gift</option>
+                  <option value="trophy">🏆 Trophy</option>
+                  <option value="calendar">📅 Calendar</option>
+                  <option value="clock">⏰ Clock</option>
+                  <option value="fire">🔥 Fire</option>
+                  <option value="rocket">🚀 Rocket</option>
+                  <option value="puck">🏒 Puck</option>
+                  <option value="balloon">🎈 Balloon</option>
+                  <option value="flag">🚩 Flag</option>
+                  <option value="none">No icon</option>
+                </select>
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label class="field-label">Display Duration <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-event_countdown-duration" min="2" max="60" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row" style="margin-top:10px;">
+              <div class="field" style="max-width:240px;">
+                <label class="field-label">Skip if more than N days away</label>
+                <input type="number" id="b-event_countdown-skip_if_more_than_days" min="0" max="3650" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Skip after event has passed</div></div>
+              <label class="toggle"><input type="checkbox" id="b-event_countdown-skip_after_event" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-hint" style="margin-top:6px;">Icon is picked from a built-in set drawn programmatically — pixel-font LED matrices can't render true emoji or arbitrary uploaded images at this size, so we use a small curated set that always renders crisply.</div>
+          </div>
+        </div>
+
         <!-- HOLIDAY -->
         <div class="board-accordion" id="acc-holiday">
           <div class="accordion-header" onclick="toggleAccordion('acc-holiday')">
@@ -1911,6 +1990,20 @@ function populateForm(cfg) {
   setToggle('b-holiday-skip_non_holidays', hl.skip_non_holidays ?? true);
   setVal('b-holiday-non_holiday_message', hl.non_holiday_message || 'HAVE A GREAT DAY');
 
+  // Christmas
+  const xm = boards.christmas || {};
+  setVal('b-christmas-skip_if_more_than_days', xm.skip_if_more_than_days ?? 30);
+
+  // Event Countdown
+  const ec = boards.event_countdown || {};
+  setVal('b-event_countdown-title', ec.title || '');
+  setVal('b-event_countdown-target_date', ec.target_date || '');
+  setVal('b-event_countdown-target_time', ec.target_time || '');
+  setSelect('b-event_countdown-icon', ec.icon || 'star');
+  setVal('b-event_countdown-duration', ec.duration ?? 8);
+  setVal('b-event_countdown-skip_if_more_than_days', ec.skip_if_more_than_days ?? 0);
+  setToggle('b-event_countdown-skip_after_event', ec.skip_after_event ?? true);
+
   // Weather
   const wx = boards.weather || {};
   setToggle('b-weather-enabled', wx.enabled);
@@ -2084,6 +2177,18 @@ function buildConfig() {
         duration: getNum('b-holiday-duration', 8),
         skip_non_holidays: getToggle('b-holiday-skip_non_holidays'),
         non_holiday_message: getVal('b-holiday-non_holiday_message') || 'HAVE A GREAT DAY'
+      },
+      christmas: {
+        skip_if_more_than_days: getNum('b-christmas-skip_if_more_than_days', 30)
+      },
+      event_countdown: {
+        title: getVal('b-event_countdown-title') || 'MY EVENT',
+        target_date: getVal('b-event_countdown-target_date') || '',
+        target_time: getVal('b-event_countdown-target_time') || '',
+        icon: getSelect('b-event_countdown-icon'),
+        duration: getNum('b-event_countdown-duration', 8),
+        skip_if_more_than_days: getNum('b-event_countdown-skip_if_more_than_days', 0),
+        skip_after_event: getToggle('b-event_countdown-skip_after_event')
       },
       // Preserve any extra board config from original (team_summary, etc.)
       ...preserveExtraBoards()

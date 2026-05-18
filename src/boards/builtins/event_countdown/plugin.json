@@ -1,0 +1,17 @@
+{
+  "name": "Event Countdown",
+  "description": "Counts down to a user-configured event (e.g. birthday, anniversary, vacation) with a custom title and icon",
+  "version": "1.0.0",
+  "author": "NHL LED Scoreboard",
+  "enabled": true,
+  "requirements": {
+    "app_version": ">=2025.01.00"
+  },
+  "boards": [
+    {
+      "id": "event_countdown",
+      "class_name": "EventCountdownBoard",
+      "module": "board"
+    }
+  ]
+}
