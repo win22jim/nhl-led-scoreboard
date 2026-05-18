@@ -363,6 +363,11 @@
   .board-chip:hover { border-color: var(--primary-dim); background: var(--bg-hover); }
   .board-chip.dragging { opacity: 0.4; cursor: grabbing; }
   .board-chip.drag-over { border-color: var(--primary); background: var(--primary-glow); }
+  /* Insertion indicator while dragging within a state column. A 2px coloured
+     bar at the top of the chip the cursor is hovering above tells the user
+     where the dropped chip will land. */
+  .board-chip.drop-before { box-shadow: 0 -2px 0 0 var(--primary) inset, 0 -3px 0 0 var(--primary); }
+  .board-chip.drop-after  { box-shadow: 0 2px 0 0 var(--primary) inset, 0 3px 0 0 var(--primary); }
   .chip-drag { color: var(--text-dim); font-size: 13px; cursor: grab; }
   .chip-remove { cursor: pointer; color: var(--text-dim); font-size: 16px; line-height: 1; transition: color var(--transition); }
   .chip-remove:hover { color: var(--error); }
@@ -2334,34 +2339,130 @@ function openTeamDropdown() {
 function renderStateList(state, boards) {
   const list = $(`state-${state}`);
   list.innerHTML = '';
-  boards.forEach((b, i) => list.appendChild(makeChip(b, state, i)));
+  boards.forEach(b => list.appendChild(makeChip(b, state)));
   updateStateCount(state);
 }
 
-function makeChip(board, state, idx) {
+function makeChip(board, state) {
   const chip = document.createElement('div');
   chip.className = 'board-chip';
   chip.draggable = true;
   chip.dataset.board = board;
   chip.dataset.state = state;
-  chip.innerHTML = `<span class="chip-drag">⠿</span> ${board} <span class="chip-remove" onclick="removeFromState('${state}',${idx})">×</span>`;
+  // Build with addEventListener + closure on chip ref so reordering doesn't
+  // invalidate stale indices baked into inline onclick handlers (the
+  // previous implementation broke remove after any reorder).
+  const drag = document.createElement('span');
+  drag.className = 'chip-drag';
+  drag.textContent = '⠿';
+  const label = document.createTextNode(' ' + board + ' ');
+  const remove = document.createElement('span');
+  remove.className = 'chip-remove';
+  remove.textContent = '×';
+  remove.addEventListener('click', e => {
+    e.stopPropagation();
+    chip.remove();
+    updateStateCount(state);
+    markDirty();
+  });
+  chip.appendChild(drag);
+  chip.appendChild(label);
+  chip.appendChild(remove);
+
   chip.addEventListener('dragstart', e => {
     dragSource = {board, fromState: state};
     chip.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', JSON.stringify({board, fromState: state}));
   });
-  chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+  chip.addEventListener('dragend', () => {
+    chip.classList.remove('dragging');
+    _clearDropIndicators();
+  });
+  // Reorder-within-column: each chip becomes its own drop target. We compute
+  // which side of the cursor's row the drop should land on (upper half →
+  // insert before this chip; lower half → insert after) and paint a
+  // colored bar to show the user where it'll land. The actual splice
+  // happens in onDrop using the same calculation.
+  chip.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragSource) return;
+    if (dragSource.board === chip.dataset.board && dragSource.fromState === state) return;
+    const box = chip.getBoundingClientRect();
+    const after = e.clientY > box.top + box.height / 2;
+    _clearDropIndicators();
+    chip.classList.add(after ? 'drop-after' : 'drop-before');
+  });
+  chip.addEventListener('dragleave', () => {
+    chip.classList.remove('drop-before', 'drop-after');
+  });
+  chip.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    let data;
+    try { data = JSON.parse(e.dataTransfer.getData('text/plain')); } catch { return; }
+    const box = chip.getBoundingClientRect();
+    const after = e.clientY > box.top + box.height / 2;
+    _clearDropIndicators();
+    _performDrop(data, state, chip, after);
+  });
   return chip;
 }
 
-function removeFromState(state, idx) {
-  const listEl = $(`state-${state}`);
-  const chips = [...listEl.querySelectorAll('.board-chip')];
-  const board = chips[idx].dataset.board;
-  chips[idx].remove();
-  updateStateCount(state);
-  updatePoolChips();
+function _clearDropIndicators() {
+  document.querySelectorAll('.board-chip.drop-before, .board-chip.drop-after')
+    .forEach(c => c.classList.remove('drop-before', 'drop-after'));
+}
+
+function _performDrop(data, toState, anchorChip, insertAfter) {
+  const {board, fromState, fromPool} = data || {};
+  if (!board) return;
+  const destList = $(`state-${toState}`);
+  if (!destList) return;
+
+  // Refuse duplicates within a single state — same board id twice in one
+  // column is never useful. Matches the pre-existing rule for pool drops;
+  // applied universally now so reordering can't accidentally introduce
+  // duplicates either.
+  const dupTarget = [...destList.querySelectorAll('.board-chip')]
+    .find(c => c.dataset.board === board);
+  if (fromPool && dupTarget) return;
+
+  // Locate the existing chip we're moving (if any). For same-state reorder
+  // this IS in destList; for cross-state move it's in the source list.
+  let movingChip = null;
+  if (fromState) {
+    const src = $(`state-${fromState}`);
+    if (src) {
+      movingChip = [...src.querySelectorAll('.board-chip')]
+        .find(c => c.dataset.board === board) || null;
+    }
+  }
+
+  // Cross-state moves: build a fresh chip so its remove-button closure
+  // captures the new state id. Same-state reorder reuses the existing chip
+  // to preserve any per-chip transient state (CSS classes, etc.).
+  let chipToInsert;
+  if (movingChip && fromState !== toState) {
+    movingChip.remove();
+    if (anchorChip === movingChip) anchorChip = null;
+    chipToInsert = makeChip(board, toState);
+  } else if (movingChip) {
+    movingChip.remove();
+    chipToInsert = movingChip;
+  } else {
+    chipToInsert = makeChip(board, toState);
+  }
+
+  if (anchorChip && anchorChip.parentElement === destList) {
+    destList.insertBefore(chipToInsert, insertAfter ? anchorChip.nextSibling : anchorChip);
+  } else {
+    destList.appendChild(chipToInsert);
+  }
+
+  if (fromState && fromState !== toState) updateStateCount(fromState);
+  updateStateCount(toState);
   markDirty();
 }
 
@@ -2451,30 +2552,13 @@ function onDragLeave(e, dzId) {
 function onDrop(e, toState) {
   e.preventDefault();
   STATES.forEach(s => document.getElementById(`dz-${s.id}`)?.classList.remove('drag-active'));
+  _clearDropIndicators();
   let data;
   try { data = JSON.parse(e.dataTransfer.getData('text/plain')); } catch { return; }
-  const {board, fromState, fromPool} = data;
-
-  if (fromState && fromState !== toState) {
-    // Move from one state to another
-    const srcEl = $(`state-${fromState}`);
-    const chip = [...srcEl.querySelectorAll('.board-chip')].find(c => c.dataset.board === board);
-    if (chip) chip.remove();
-    updateStateCount(fromState);
-  } else if (fromState === toState) {
-    return; // reorder within same state — handled by chip drag
-  }
-
-  if (fromPool || fromState !== toState) {
-    const listEl = $(`state-${toState}`);
-    const alreadyInState = [...listEl.querySelectorAll('.board-chip')].some(c => c.dataset.board === board);
-    if (alreadyInState) return;
-    const newChip = makeChip(board, toState, listEl.querySelectorAll('.board-chip').length);
-    listEl.appendChild(newChip);
-    updateStateCount(toState);
-    updatePoolChips();
-    markDirty();
-  }
+  // List-level drop: no anchor chip, append to end. Reorder-within-state
+  // drops on individual chips are handled by the per-chip drop listener
+  // in makeChip (which calls _performDrop directly with an anchor).
+  _performDrop(data, toState, /*anchorChip=*/null, /*insertAfter=*/false);
 }
 
 // ═══════════════════════════════════════════════════════════
