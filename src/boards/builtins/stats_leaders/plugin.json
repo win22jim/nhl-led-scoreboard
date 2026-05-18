@@ -1,6 +1,6 @@
 {
-  "name": "stats_leaders",
-  "description": "NHL Statistics Leaders Board",
+  "name": "Stats Leaders",
+  "description": "League leaders for goals, assists, points, +/-, and more",
   "version": "1.0.0",
   "boards": [
     {

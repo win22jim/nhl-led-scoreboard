@@ -1,0 +1,17 @@
+{
+  "name": "Holiday",
+  "description": "Shows a holiday greeting + icon on supported US or Canadian holidays",
+  "version": "1.0.0",
+  "author": "NHL LED Scoreboard",
+  "enabled": true,
+  "requirements": {
+    "app_version": ">=2025.01.00"
+  },
+  "boards": [
+    {
+      "id": "holiday",
+      "class_name": "HolidayBoard",
+      "module": "board"
+    }
+  ]
+}

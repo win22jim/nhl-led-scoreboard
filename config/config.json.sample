@@ -138,6 +138,12 @@
 			"rotation_rate": 12,
 			"max_items": 5,
 			"update_freq": 30
+		},
+		"holiday": {
+			"country": "us",
+			"skip_non_holidays": true,
+			"non_holiday_message": "HAVE A GREAT DAY",
+			"duration": 8
 		}
 	},
 	"sbio": {

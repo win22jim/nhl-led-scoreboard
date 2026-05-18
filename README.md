@@ -31,6 +31,11 @@ In the web dashboard board rotation UI, available boards were single-use — onc
 
 ### New Features
 
+**Holiday board, collapsible state cards, and richer board hover tooltips**
+- New `holiday` board: themed icon + greeting on US/CA holidays, configurable to skip non-holidays (default) or show a generic message daily. Graphics are programmatic — no asset downloads required.
+- Board Rotation state columns are now collapsible — click the header to fold a state away. Collapsed state persists across reloads.
+- Available-board chips now show a rich hover popover with the display name, board id, and a description sourced from each board's `plugin.json`, replacing the old single-line browser tooltip. Legacy board descriptions filled out so every chip has something useful to read.
+
 **Season-phase states and four off-season boards** ([`cdcd5ee`](https://github.com/win22jim/nhl-led-scoreboard/commit/cdcd5ee))
 Adds three new board-rotation states the renderer picks automatically from the NHL playoff carousel and schedule:
 - `post_season_active` — playoff off-day while at least one of your preferred teams is still alive in the bracket
@@ -98,7 +103,16 @@ Detection is fully automatic from the NHL playoff carousel and schedule — ther
   - Replaces the retired NHL team RSS feeds. Source: NHL Forge content API (`forge-dapi.d3.nhle.com`).
   - The team is whichever appears first in your Preferences → Preferred Teams list.
 
-All four boards are crash-hardened: any fetch or parse failure renders an empty state (e.g. "no data") and the rotation moves on. The free agency board falls back to "needs bs4" if `beautifulsoup4` isn't installed, but standard installs (`sb-init` / `sb-upgrade`) pull it in automatically.
+- **Holiday (`holiday`)** — Shows a themed icon and "Happy {Holiday}" greeting on supported holidays.
+  - *Country*: `United States` (default) or `Canada`. Picks the calendar — shared holidays (Christmas, Valentine's, Easter, Halloween, New Year) appear in both.
+  - *Display Duration* (seconds, default 8).
+  - *Skip on Non-Holidays*: ON by default — board silently skips when today isn't a holiday so the rotation moves past it. Turn OFF to show your configured *Non-Holiday Message* daily.
+  - *Non-Holiday Message*: text shown only when "Skip" is OFF (default "HAVE A GREAT DAY").
+  - US holidays recognized: New Year's Eve/Day, MLK Day, Valentine's Day, Presidents' Day, St. Patrick's Day, Easter, Memorial Day, Juneteenth, Independence Day, Labor Day, Halloween, Veterans Day, Thanksgiving, Christmas Eve, Christmas.
+  - Canadian holidays recognized: New Year's Eve/Day, Valentine's Day, Family Day, St. Patrick's Day, Easter, Victoria Day, Canada Day, Civic Holiday, Labour Day, Thanksgiving (CA), Halloween, Remembrance Day, Christmas Eve, Christmas, Boxing Day.
+  - All graphics are drawn from PIL primitives — no extra assets to install.
+
+All boards are crash-hardened: any fetch or parse failure renders an empty state (e.g. "no data") and the rotation moves on. The free agency board falls back to "needs bs4" if `beautifulsoup4` isn't installed, but standard installs (`sb-init` / `sb-upgrade`) pull it in automatically.
 
 ---
 

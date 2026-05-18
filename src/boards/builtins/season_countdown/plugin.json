@@ -1,6 +1,6 @@
 {
-  "name": "season_countdown",
-  "description": "Season Countdown Board displays time until NHL season starts",
+  "name": "Season Countdown",
+  "description": "Days remaining until the next NHL regular season starts",
   "boards": [
     {
       "id": "season_countdown",

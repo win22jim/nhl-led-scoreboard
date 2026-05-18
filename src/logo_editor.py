@@ -1035,16 +1035,16 @@ def scoreboard_logs():
 # Legacy board IDs that aren't discoverable via plugin.json scanning.
 # Mirrors `legacy_boards` in src/boards/boards.py:_register_legacy_boards.
 _LEGACY_BOARDS = [
-    {"id": "seriesticker", "name": "Series Ticker", "description": "Playoff series progress and game-by-game results", "kind": "legacy"},
-    {"id": "clock", "name": "Clock", "description": "Time and date display", "kind": "legacy"},
-    {"id": "pbdisplay", "name": "Push Button Display", "description": "Push button-triggered display", "kind": "legacy"},
-    {"id": "weather", "name": "Weather", "description": "Current weather conditions", "kind": "legacy"},
-    {"id": "wxalert", "name": "Weather Alerts", "description": "Severe weather alert banner", "kind": "legacy"},
-    {"id": "wxforecast", "name": "Weather Forecast", "description": "Multi-day weather forecast", "kind": "legacy"},
-    {"id": "screensaver", "name": "Screensaver", "description": "Animated screensaver", "kind": "legacy"},
-    {"id": "christmas", "name": "Christmas", "description": "Holiday countdown", "kind": "legacy"},
-    {"id": "player_stats", "name": "Player Stats", "description": "Individual player statistics", "kind": "legacy"},
-    {"id": "ovi_tracker", "name": "Ovechkin Tracker", "description": "Ovechkin goal chase tracker", "kind": "legacy"},
+    {"id": "seriesticker", "name": "Series Ticker", "description": "Playoff series progress: matchups, series score, and per-game results", "kind": "legacy"},
+    {"id": "clock", "name": "Clock", "description": "Large time and date display (with optional team-color theming)", "kind": "legacy"},
+    {"id": "pbdisplay", "name": "Push Button Display", "description": "Output triggered by a physical push-button input (rarely used)", "kind": "legacy"},
+    {"id": "weather", "name": "Weather", "description": "Current local weather conditions for the configured location", "kind": "legacy"},
+    {"id": "wxalert", "name": "Weather Alerts", "description": "Severe-weather alert banner from NWS or Environment Canada", "kind": "legacy"},
+    {"id": "wxforecast", "name": "Weather Forecast", "description": "Multi-day weather forecast for the configured location", "kind": "legacy"},
+    {"id": "screensaver", "name": "Screensaver", "description": "Idle-mode animation shown during configured quiet hours", "kind": "legacy"},
+    {"id": "christmas", "name": "Christmas Countdown", "description": "Days until December 25, plus a festive animation on the day", "kind": "legacy"},
+    {"id": "player_stats", "name": "Player Stats", "description": "Season stats for a configured list of players (incl. goalies)", "kind": "legacy"},
+    {"id": "ovi_tracker", "name": "Ovechkin Tracker", "description": "Alexander Ovechkin career goals chase (only meaningful for WSH fans)", "kind": "legacy"},
 ]
 
 

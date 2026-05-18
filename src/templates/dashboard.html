@@ -327,9 +327,22 @@
     padding: 10px 14px;
     background: var(--bg); border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+    transition: background var(--transition);
   }
+  .state-header:hover { background: var(--bg-hover); }
+  .state-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .state-toggle {
+    font-size: 11px; color: var(--text-dim); transition: transform 150ms ease;
+    display: inline-block; width: 12px;
+  }
+  .state-card.collapsed .state-toggle { transform: rotate(-90deg); }
+  .state-card.collapsed .state-body { display: none; }
+  .state-card.collapsed { border-color: var(--border); }
+  .state-card.collapsed .state-header { border-bottom-color: transparent; }
   .state-title { font-size: 12px; font-weight: 700; color: var(--text); letter-spacing: 0.04em; text-transform: uppercase; }
   .state-count { font-size: 11px; color: var(--text-dim); }
+  .state-desc { font-size: 11px; color: var(--text-dim); padding: 6px 14px 0; }
   .board-list {
     padding: 8px;
     min-height: 80px;
@@ -379,6 +392,29 @@
   }
   .pool-chip:hover { color: var(--text); border-color: var(--border-hi); background: var(--bg-hover); }
   .pool-chip.in-use { opacity: 0.3; cursor: default; }
+  /* Rich hover popover for board chips. Built once and reused; positioned
+     dynamically via JS so it follows whichever chip is hovered. */
+  .chip-popover {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    max-width: 320px;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 100ms ease, transform 100ms ease;
+  }
+  .chip-popover.visible { opacity: 1; transform: translateY(0); }
+  .chip-popover .chip-popover-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: var(--text); }
+  .chip-popover .chip-popover-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--text-dim); margin-bottom: 6px; }
+  .chip-popover .chip-popover-desc { color: var(--text-muted); }
 
   /* ── BOARDS ACCORDION ── */
   .board-accordion { margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
@@ -1103,6 +1139,43 @@
           </div>
         </div>
 
+        <!-- HOLIDAY -->
+        <div class="board-accordion" id="acc-holiday">
+          <div class="accordion-header" onclick="toggleAccordion('acc-holiday')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Holiday</div>
+              <span class="board-tag">holiday</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:160px;">
+                <label class="field-label">Country</label>
+                <select id="b-holiday-country" onchange="markDirty()">
+                  <option value="us">United States</option>
+                  <option value="ca">Canada</option>
+                </select>
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label class="field-label">Display Duration <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-holiday-duration" min="2" max="60" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div>
+                <div class="toggle-label">Skip on Non-Holidays</div>
+                <div class="field-hint" style="margin-top:4px;">Default ON — board is silently skipped when today isn't a recognized holiday so the rotation moves past it. Turn OFF to show a generic "Have a Great Day" greeting daily.</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="b-holiday-skip_non_holidays" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field" style="margin-top:10px;">
+              <label class="field-label">Non-Holiday Message <span style="color:var(--text-dim)">(used only when "Skip on Non-Holidays" is OFF)</span></label>
+              <input type="text" id="b-holiday-non_holiday_message" maxlength="40" onchange="markDirty()">
+            </div>
+          </div>
+        </div>
+
         <!-- TEAM NEWS -->
         <div class="board-accordion" id="acc-team_news">
           <div class="accordion-header" onclick="toggleAccordion('acc-team_news')">
@@ -1610,19 +1683,37 @@ function renderStateColumns() {
   const grid = document.getElementById('statesGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  // Restore prior collapsed state from localStorage so the user's preference
+  // survives reloads / config saves.
+  let collapsedSet = new Set();
+  try { collapsedSet = new Set(JSON.parse(localStorage.getItem('collapsedStates') || '[]')); } catch {}
   STATES.forEach(s => {
     const card = document.createElement('div');
-    card.className = 'state-card';
+    card.className = 'state-card' + (collapsedSet.has(s.id) ? ' collapsed' : '');
+    card.dataset.state = s.id;
     card.innerHTML = `
       <div class="state-header">
-        <div class="state-title">${s.icon || ''} ${s.name}</div>
+        <div class="state-header-left">
+          <span class="state-toggle">▼</span>
+          <span class="state-title">${escapeHTML(s.icon || '')} ${escapeHTML(s.name)}</span>
+        </div>
         <div class="state-count" id="count-${s.id}"></div>
       </div>
-      ${s.description ? `<div class="state-desc" style="font-size:11px;color:var(--text-dim);padding:0 12px 6px;">${s.description}</div>` : ''}
-      <div class="board-list" id="state-${s.id}" data-state="${s.id}"></div>
-      <div class="drop-zone" id="dz-${s.id}" style="margin:0 8px 8px;">+ Drop board here</div>
+      <div class="state-body">
+        ${s.description ? `<div class="state-desc">${escapeHTML(s.description)}</div>` : ''}
+        <div class="board-list" id="state-${s.id}" data-state="${s.id}"></div>
+        <div class="drop-zone" id="dz-${s.id}" style="margin:0 8px 8px;">+ Drop board here</div>
+      </div>
     `;
     grid.appendChild(card);
+    // Click anywhere on the header (except a count badge with action) toggles collapse.
+    card.querySelector('.state-header').addEventListener('click', () => {
+      card.classList.toggle('collapsed');
+      const open = !card.classList.contains('collapsed');
+      const cur = new Set(JSON.parse(localStorage.getItem('collapsedStates') || '[]'));
+      if (open) cur.delete(s.id); else cur.add(s.id);
+      localStorage.setItem('collapsedStates', JSON.stringify([...cur]));
+    });
     // Wire drag handlers programmatically so the state id is closed over (avoids
     // template injection if state ids ever come from user-supplied data).
     const list = card.querySelector(`#state-${s.id}`);
@@ -1810,6 +1901,13 @@ function populateForm(cfg) {
   setVal('b-team_news-max_items', tn.max_items ?? 5);
   setVal('b-team_news-update_freq', tn.update_freq ?? 30);
 
+  // Holiday
+  const hl = boards.holiday || {};
+  setSelect('b-holiday-country', hl.country || 'us');
+  setVal('b-holiday-duration', hl.duration ?? 8);
+  setToggle('b-holiday-skip_non_holidays', hl.skip_non_holidays ?? true);
+  setVal('b-holiday-non_holiday_message', hl.non_holiday_message || 'HAVE A GREAT DAY');
+
   // Weather
   const wx = boards.weather || {};
   setToggle('b-weather-enabled', wx.enabled);
@@ -1977,6 +2075,12 @@ function buildConfig() {
         rotation_rate: getNum('b-team_news-rotation_rate', 12),
         max_items: getNum('b-team_news-max_items', 5),
         update_freq: getNum('b-team_news-update_freq', 30)
+      },
+      holiday: {
+        country: getSelect('b-holiday-country'),
+        duration: getNum('b-holiday-duration', 8),
+        skip_non_holidays: getToggle('b-holiday-skip_non_holidays'),
+        non_holiday_message: getVal('b-holiday-non_holiday_message') || 'HAVE A GREAT DAY'
       },
       // Preserve any extra board config from original (team_summary, etc.)
       ...preserveExtraBoards()
@@ -2165,16 +2269,59 @@ function updatePoolChips() {
     const chip = document.createElement('div');
     chip.className = 'pool-chip';
     chip.textContent = id;
-    if (meta.description) chip.title = meta.description;
     chip.draggable = true;
     chip.dataset.board = id;
     chip.addEventListener('dragstart', e => {
       dragSource = {board: id, fromPool: true};
       e.dataTransfer.setData('text/plain', JSON.stringify({board: id, fromPool: true}));
       e.dataTransfer.effectAllowed = 'copy';
+      hideChipPopover();
     });
+    // Rich hover popover (replaces native title tooltip — faster, prettier,
+    // shows the display name + id + description in one panel).
+    chip.addEventListener('mouseenter', e => showChipPopover(e.currentTarget, meta));
+    chip.addEventListener('mouseleave', hideChipPopover);
     pool.appendChild(chip);
   });
+}
+
+// ── BOARD CHIP HOVER POPOVER ─────────────────────────────────────────
+let _chipPopoverEl = null;
+function _ensureChipPopover() {
+  if (_chipPopoverEl) return _chipPopoverEl;
+  _chipPopoverEl = document.createElement('div');
+  _chipPopoverEl.className = 'chip-popover';
+  document.body.appendChild(_chipPopoverEl);
+  return _chipPopoverEl;
+}
+function showChipPopover(anchor, meta) {
+  const el = _ensureChipPopover();
+  const name = (meta.name && meta.name !== meta.id) ? meta.name : meta.id;
+  const desc = meta.description || '(no description provided)';
+  el.innerHTML = `
+    <div class="chip-popover-name">${escapeHTML(name)}</div>
+    <div class="chip-popover-id">${escapeHTML(meta.id)}</div>
+    <div class="chip-popover-desc">${escapeHTML(desc)}</div>
+  `;
+  // Position above the chip, clamped within the viewport so it never clips.
+  const rect = anchor.getBoundingClientRect();
+  el.style.left = '0px';
+  el.style.top = '0px';
+  el.classList.add('visible');
+  const popRect = el.getBoundingClientRect();
+  let left = rect.left + (rect.width / 2) - (popRect.width / 2);
+  let top = rect.top - popRect.height - 8;
+  if (top < 8) top = rect.bottom + 8;            // flip below if it'd clip the top
+  if (left < 8) left = 8;
+  if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+}
+function hideChipPopover() {
+  if (_chipPopoverEl) _chipPopoverEl.classList.remove('visible');
+}
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function onDragOver(e, dzId) {

@@ -1,0 +1,6 @@
+{
+  "country": "us",
+  "skip_non_holidays": true,
+  "non_holiday_message": "HAVE A GREAT DAY",
+  "duration": 8
+}
