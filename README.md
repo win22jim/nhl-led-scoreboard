@@ -11,6 +11,9 @@ The following bug fixes and features have been contributed on top of upstream `f
 
 ### Bug Fixes
 
+**Seriesticker timezone crash on TBD playoff games** ([`86e1178`](https://github.com/win22jim/nhl-led-scoreboard/commit/86e1178))
+TBD playoff games (e.g. conference finals home team not yet known) arrive from the NHL API with a date-only `gameDate` and no `startTimeUTC`, which produced a naive `datetime`. `Series.get_game_overview` then compared it against `datetime.now(timezone.utc)` and crashed with `TypeError: can't compare offset-naive and offset-aware datetimes`. `Game.from_api` now normalises `game_date` to a tz-aware UTC value at the parsing boundary so every downstream comparison is consistent.
+
 **Seriesticker crash on API failure** ([`688a7c2`](https://github.com/win22jim/nhl-led-scoreboard/commit/688a7c2))
 When the NHL API fails to return data for a specific playoff series during startup, `Series.__init__` returns early without setting any attributes. The partially-constructed object was still being added to the series list, causing an `AttributeError` crash whenever `seriesticker` tried to render it. The fix filters these invalid objects out at both the data layer and the render loop.
 
@@ -27,6 +30,25 @@ Switched series information retrieval from the NHL Records API (which returns pe
 In the web dashboard board rotation UI, available boards were single-use — once dropped into any state they became non-draggable. Fixed so pool boards remain draggable and duplicate prevention is scoped per-state only (matching how `config.json` actually works).
 
 ### New Features
+
+**Season-phase states and four off-season boards** ([`cdcd5ee`](https://github.com/win22jim/nhl-led-scoreboard/commit/cdcd5ee))
+Adds three new board-rotation states the renderer picks automatically from the NHL playoff carousel and schedule:
+- `post_season_active` — playoff off-day while at least one of your preferred teams is still alive in the bracket
+- `post_season_eliminated` — playoffs still running but your preferred team has been eliminated
+- `off_season` — between the Stanley Cup and the next regular-season opener
+
+States default to empty so they only activate once you populate them in the Board Rotation tab. When empty, the renderer falls back to `off_day` — existing configs keep working unchanged.
+
+Four new boards ship as builtins and appear in the dashboard automatically:
+- `draft_tracker` — live NHL Entry Draft picks (api-web.nhle.com), with optional highlighting for your preferred teams; falls back to pre-draft rankings
+- `awards` — Stanley Cup / Hart / Norris / Vezina / etc. trophies (records.nhl.com) with the most-recent winner parsed from the description
+- `free_agency` — recent signings and top remaining unsigned players (spotrac.com, scraped — no official NHL feed exists)
+- `team_news` — recent NHL.com headlines for your first preferred team (NHL Forge content API, the official replacement for the retired team RSS feeds)
+
+Every new board wraps all fetch/parse/render paths in try/except and renders an empty state on failure — they cannot crash the rotation. A shared rotation helper in `boards.py` adds the same guard around all phase-state board renders.
+
+**Web dashboard now exposes all registered boards automatically** ([`cdcd5ee`](https://github.com/win22jim/nhl-led-scoreboard/commit/cdcd5ee))
+The dashboard's available-boards picker and state columns were hardcoded in JavaScript and silently dropped any board that wasn't in the list (`pbdisplay`, `wxforecast`, `screensaver`, `christmas`, `ovi_tracker`, plus every new plugin). Added `GET /api/scoreboard/available-boards` and `GET /api/scoreboard/states` to `logo_editor.py`; the dashboard fetches them on load. Adding a builtin or plugin now requires zero front-end work.
 
 **Web management dashboard** ([`62bd559`](https://github.com/win22jim/nhl-led-scoreboard/commit/62bd559))
 A full-featured dashboard served at `http://<pi-ip>:5000/dashboard` by the existing Flask server (`logo_editor.py`). Features include:

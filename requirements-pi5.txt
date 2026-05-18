@@ -27,3 +27,5 @@ watchdog
 adafruit-blinka
 Adafruit-Blinka-Raspberry-Pi5-Piomatter
 flask
+requests>=2.31
+beautifulsoup4>=4.12

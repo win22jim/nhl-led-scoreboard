@@ -24,3 +24,5 @@ backoff
 env-canada>=0.12.2
 httpx==0.28.1
 watchdog
+requests>=2.31
+beautifulsoup4>=4.12
