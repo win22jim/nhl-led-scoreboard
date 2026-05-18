@@ -219,21 +219,32 @@ class SchedulerManager:
                     sb_logger.error(f"Unable to connect to EC .. will try on next refresh : {e}")
 
         # weather worker
+        # All worker constructors below are individually try/except-guarded:
+        # weather provider APIs are out-of-tree (OWM, EC, NWS) and have
+        # repeatedly broken the whole service when their endpoints or auth
+        # requirements changed (most recently OWM One Call 3.0 requiring a
+        # paid subscription). One worker failing must not take down the rest.
         if self.data.config.weather_enabled:
             if self.data.config.weather_data_feed.lower() == "ec":
                 job_id = self.KNOWN_JOB_IDS["ecWxWorker"]
                 if not self._job_exists(job_id, existing_ids):
-                    ecWxWorker(self.data, self.data.scheduler)
-                    existing_ids.append(job_id)
-                    sb_logger.info(f"Scheduled EC weather worker (id={job_id})")
+                    try:
+                        ecWxWorker(self.data, self.data.scheduler)
+                        existing_ids.append(job_id)
+                        sb_logger.info(f"Scheduled EC weather worker (id={job_id})")
+                    except Exception as e:
+                        sb_logger.error(f"ecWxWorker init failed ({e}); EC weather disabled until next config change", exc_info=True)
                 else:
                     sb_logger.debug(f"EC weather worker already scheduled (id={job_id}), skipping add.")
             elif self.data.config.weather_data_feed.lower() == "owm":
                 job_id = self.KNOWN_JOB_IDS["owmWxWorker"]
                 if not self._job_exists(job_id, existing_ids):
-                    owmWxWorker(self.data, self.data.scheduler)
-                    existing_ids.append(job_id)
-                    sb_logger.info(f"Scheduled OWM weather worker (id={job_id})")
+                    try:
+                        owmWxWorker(self.data, self.data.scheduler)
+                        existing_ids.append(job_id)
+                        sb_logger.info(f"Scheduled OWM weather worker (id={job_id})")
+                    except Exception as e:
+                        sb_logger.error(f"owmWxWorker init failed ({e}); OWM weather disabled until next config change", exc_info=True)
                 else:
                     sb_logger.debug(f"OWM weather worker already scheduled (id={job_id}), skipping add.")
             else:
@@ -245,17 +256,23 @@ class SchedulerManager:
             if self.data.config.wxalert_alert_feed.lower() == "ec":
                 job_id = self.KNOWN_JOB_IDS["ecWxAlerts"]
                 if not self._job_exists(job_id, existing_ids):
-                    ecWxAlerts(self.data, self.data.scheduler, self.sleep_event)
-                    existing_ids.append(job_id)
-                    sb_logger.info(f"Scheduled EC alerts worker (id={job_id})")
+                    try:
+                        ecWxAlerts(self.data, self.data.scheduler, self.sleep_event)
+                        existing_ids.append(job_id)
+                        sb_logger.info(f"Scheduled EC alerts worker (id={job_id})")
+                    except Exception as e:
+                        sb_logger.error(f"ecWxAlerts init failed ({e}); EC alerts disabled until next config change", exc_info=True)
                 else:
                     sb_logger.debug(f"EC alerts worker already scheduled (id={job_id}), skipping add.")
             elif self.data.config.wxalert_alert_feed.lower() == "nws":
                 job_id = self.KNOWN_JOB_IDS["nwsWxAlerts"]
                 if not self._job_exists(job_id, existing_ids):
-                    nwsWxAlerts(self.data, self.data.scheduler, self.sleep_event)
-                    existing_ids.append(job_id)
-                    sb_logger.info(f"Scheduled NWS alerts worker (id={job_id})")
+                    try:
+                        nwsWxAlerts(self.data, self.data.scheduler, self.sleep_event)
+                        existing_ids.append(job_id)
+                        sb_logger.info(f"Scheduled NWS alerts worker (id={job_id})")
+                    except Exception as e:
+                        sb_logger.error(f"nwsWxAlerts init failed ({e}); NWS alerts disabled until next config change", exc_info=True)
                 else:
                     sb_logger.debug(f"NWS alerts worker already scheduled (id={job_id}), skipping add.")
             else:
@@ -266,9 +283,18 @@ class SchedulerManager:
         if self.data.config.weather_forecast_enabled and self.data.config.weather_enabled:
             job_id = self.KNOWN_JOB_IDS["wxForecast"]
             if not self._job_exists(job_id, existing_ids):
-                wxForecast(self.data, self.data.scheduler)
-                existing_ids.append(job_id)
-                sb_logger.info(f"Scheduled weather forecast (id={job_id})")
+                # Defensive: if the OWM API key is invalid or the One Call 3.0
+                # endpoint isn't subscribed, the constructor's initial fetch
+                # used to bubble TypeError up through here and kill the whole
+                # service. The worker is now individually guarded so a bad
+                # config disables forecast but lets the rest of the scheduler
+                # come up.
+                try:
+                    wxForecast(self.data, self.data.scheduler)
+                    existing_ids.append(job_id)
+                    sb_logger.info(f"Scheduled weather forecast (id={job_id})")
+                except Exception as e:
+                    sb_logger.error(f"wxForecast init failed ({e}); forecast disabled until next config change", exc_info=True)
             else:
                 sb_logger.debug(f"Weather forecast already scheduled (id={job_id}), skipping add.")
 

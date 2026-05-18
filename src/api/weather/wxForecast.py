@@ -52,8 +52,14 @@ class wxForecast(object):
         else:
             self.data.wx_units = ["F","mph","in","miles","MB","us"]
 
-        #Get initial forecast
-        self.getForecast()
+        #Get initial forecast. Wrap in try/except so a misconfigured key or a
+        #downstream parse error in the first call doesn't crash the scheduler
+        #initialization — the cron job will retry on its next tick.
+        try:
+            self.getForecast()
+        except Exception as e:
+            debug.error(f"wxForecast: initial getForecast() raised: {e}", exc_info=True)
+            self.data.forecast_updated = False
 
 
     def getForecast(self):
@@ -170,6 +176,27 @@ class wxForecast(object):
 
             except Exception as e:
                 debug.error("Unable to get OWM data error:{0}".format(e))
+                self.data.forecast_updated = False
+                self.network_issues = True
+                return
+
+            # OpenWeatherMap returns an error envelope ({"cod": 401, "message":
+            # "..."}) when the One Call 3.0 endpoint isn't subscribed for the
+            # API key. Previously we blindly indexed `one_call["daily"]` which
+            # crashed the whole scheduler with TypeError. Validate the shape
+            # first so a misconfigured key just logs and skips.
+            if not isinstance(one_call, dict) or not isinstance(one_call.get("daily"), list):
+                cod = (one_call or {}).get("cod") if isinstance(one_call, dict) else None
+                msg = (one_call or {}).get("message", "no message") if isinstance(one_call, dict) else "non-dict response"
+                if cod == 401 or (isinstance(cod, str) and cod == "401"):
+                    debug.error(
+                        "OWM forecast denied (HTTP 401). The One Call 3.0 endpoint requires a paid "
+                        "subscription on the API key. Either subscribe to OWM One Call 3.0, switch "
+                        "weather_data_feed to 'EC' (Environment Canada), or disable forecast_enabled. "
+                        f"API message: {msg}"
+                    )
+                else:
+                    debug.error(f"OWM forecast: unexpected response shape (cod={cod}, message={msg}). Skipping update.")
                 self.data.forecast_updated = False
                 self.network_issues = True
                 return
