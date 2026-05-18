@@ -110,12 +110,20 @@ class Seriesticker:
                 )
 
             if not series.round_number == 4:
-                try:
-                    color_conf = self.team_colors.color("{}.primary".format(series.conference))
-                    banner_text = series.conference[:4].upper()
-                except Exception:
-                    color_conf = self.team_colors.color("{}.primary".format("Western"))
-                    banner_text = "WEST"
+                conference = getattr(series, "conference", "") or ""
+                if conference:
+                    try:
+                        color_conf = self.team_colors.color("{}.primary".format(conference))
+                    except Exception:
+                        color_conf = {'r': 80, 'g': 80, 'b': 80}
+                    banner_text = conference[:4].upper()
+                else:
+                    # Genuinely no conference data — use a neutral grey banner and
+                    # drop the EAST/WEST prefix rather than guessing (the old
+                    # code defaulted to "WEST" and consistently mislabeled the
+                    # Eastern Conference Finals when one side was TBD).
+                    color_conf = {'r': 80, 'g': 80, 'b': 80}
+                    banner_text = ""
                 color_banner_bg = (color_conf['r'], color_conf['g'], color_conf['b'])
                 round_name = series.round_name.replace("-"," ").upper()
                 if round_name == "CONFERENCE FINALS":
@@ -124,10 +132,12 @@ class Seriesticker:
 
             # STANLEY CUP FINAL or EAST/WEST CONFERENCE FINALS
             if series.round_number >= 3:
-                banner_text = f"{banner_text} {round_name}"
-            else:
+                banner_text = f"{banner_text} {round_name}".strip()
+            elif banner_text:
                 # EAST/WEST - 1ST/2ND ROUND
                 banner_text = f"{banner_text} - {round_name}"
+            else:
+                banner_text = round_name
 
 
             top_team_wins = series.top_team.series_wins

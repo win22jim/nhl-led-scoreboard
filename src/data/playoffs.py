@@ -53,10 +53,21 @@ class Series:
         top_team_abbrev = top["abbrev"]
         bottom_team_abbrev = bottom["abbrev"]
         to_win = series_info["neededToWin"]
-        try:
-            self.conference = top["conference"]["name"]
-        except Exception:
-            self.conference = ""
+        # Conference lookup needs both sides: in conference finals one side is
+        # often TBD until both semifinals finish, and TBD has no conference
+        # field. The previous code only checked the top seed and bare-excepted
+        # to "" — combined with seriesticker.py defaulting to "Western", that
+        # mislabeled the Eastern Conference Finals as WEST whenever the home
+        # team wasn't yet known. Check top seed first, then bottom seed.
+        self.conference = ""
+        for side in (top, bottom):
+            try:
+                conf_name = (side.get("conference") or {}).get("name")
+                if conf_name:
+                    self.conference = conf_name
+                    break
+            except Exception:
+                continue
         self.series_letter = series["seriesLetter"]
         self.round_number = series["roundNumber"]
         self.round_name = series["seriesLabel"]
