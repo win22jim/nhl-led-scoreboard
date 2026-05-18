@@ -60,6 +60,46 @@ A full-featured dashboard served at `http://<pi-ip>:5000/dashboard` by the exist
 **Logo editor and dashboard auto-start via supervisord** ([`1cebe55`](https://github.com/win22jim/nhl-led-scoreboard/commit/1cebe55))
 Adds `scripts/supervisor/logo-editor.conf` so the Flask server (logo editor + dashboard) starts automatically with the Pi and restarts on failure. `sb-init` now installs the supervisor config on fresh installs so no manual setup is required.
 
+### Using the new boards and states
+
+Open the web dashboard at `http://<pi-ip>:5000/dashboard`. Every change below is made from the **Board Rotation** and **Boards** tabs there — no manual `config.json` editing required. Save and restart the scoreboard from the dashboard's status bar when done.
+
+**Season-phase states.** Three new columns appear in the **Board Rotation** tab alongside Off Day / Scheduled / Intermission / Post Game:
+
+| State | When the scoreboard switches to it |
+|---|---|
+| 🏆 Playoffs — Team In (`post_season_active`) | Playoffs are running, at least one of your preferred teams is still alive in the bracket, and they're not playing today. |
+| 🥲 Playoffs — Team Out (`post_season_eliminated`) | Playoffs are running but your preferred team has been eliminated (or never made it). |
+| ☀️ Off Season (`off_season`) | Between Stanley Cup award and the next regular-season opener. |
+
+Detection is fully automatic from the NHL playoff carousel and schedule — there is nothing to configure. The states default to **empty**, which means the scoreboard falls back to your existing `off_day` rotation. **Drag boards into a phase column to activate it for that phase**; common picks:
+- Playoffs — Team In: `seriesticker`, `team_summary`, `standings`, `player_stats`
+- Playoffs — Team Out: `seriesticker`, `awards`, `draft_tracker`, `team_news`
+- Off Season: `season_countdown`, `draft_tracker`, `awards`, `free_agency`, `team_news`
+
+**Configuring the new boards.** All four appear as draggable chips in the **Available Boards** pool and have settings panels under the **Boards** tab:
+
+- **Draft Tracker (`draft_tracker`)** — Shows live NHL Entry Draft picks during the draft, prospect rankings outside it.
+  - *Picks to Show*: how many recent picks fit on screen (default 5).
+  - *Highlight Preferred Team Picks*: ON colours your team's picks in gold (default ON).
+  - Most useful in Off Season and Playoffs — Team Out states. Source: official NHL API (`api-web.nhle.com/v1/draft/picks/now`).
+
+- **Awards (`awards`)** — Cycles through NHL trophies (Stanley Cup, Hart, Norris, Vezina, …) with the most recent winner.
+  - *Trophies*: `major` (the big eight) or `all`. Default `major`.
+  - Refreshes once a day — quiet most of the year, lights up after awards night in late June. Source: `records.nhl.com`.
+
+- **Free Agency (`free_agency`)** — Recent signings and/or top remaining unsigned free agents.
+  - *Show*: `Recent signings`, `Top remaining`, or `Both`. Default `Recent signings`.
+  - *Max Entries* (default 10), *Preferred Team Only* toggle.
+  - Source: `spotrac.com` (no official NHL feed exists). HTML-scraped, so the board renders "no data" if the page redesigns — never crashes.
+
+- **Team News (`team_news`)** — Recent NHL.com headlines for the first team in your Preferences.
+  - *Headlines* (1–20, default 5), *Refresh (minutes)* (default 30).
+  - Replaces the retired NHL team RSS feeds. Source: NHL Forge content API (`forge-dapi.d3.nhle.com`).
+  - The team is whichever appears first in your Preferences → Preferred Teams list.
+
+All four boards are crash-hardened: any fetch or parse failure renders an empty state (e.g. "no data") and the rotation moves on. The free agency board falls back to "needs bs4" if `beautifulsoup4` isn't installed, but standard installs (`sb-init` / `sb-upgrade`) pull it in automatically.
+
 ---
 
 > [!IMPORTANT]
