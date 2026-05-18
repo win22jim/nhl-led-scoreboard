@@ -31,6 +31,12 @@ In the web dashboard board rotation UI, available boards were single-use — onc
 
 ### New Features
 
+**Open-Meteo weather provider + weather worker hardening**
+- New `openmeteo` option for `weather_data_feed`. Free, no API key, no signup, global coverage. Recommended for everyone — OpenWeatherMap's One Call endpoint now requires a paid v3 subscription, and Environment Canada's free feed only covers Canadian lat/lons.
+- Existing OWM and EC options stay so nothing breaks.
+- Every weather worker constructor (OWM, EC, NWS, Open-Meteo, forecast) is now individually guarded in the scheduler. If a third-party endpoint changes shape and breaks one worker, the rest of the service still comes up — preventing the all-too-frequent "weather provider broke the whole scoreboard" pattern.
+- The OWM forecast worker specifically now detects HTTP 401 (One Call 3.0 subscription required) and logs an actionable message instead of crash-looping.
+
 **Event Countdown board + Christmas skip threshold**
 - New `event_countdown` board: configure a title, date, optional time, and pick one of 12 curated icons (star, heart, gift, trophy, calendar, clock, fire, rocket, puck, balloon, flag, none). Auto-skips after the event passes; optional "skip if more than N days out" so annual events don't sit in the rotation year-round.
 - The existing Christmas Countdown board now has a `skip_if_more_than_days` setting (default 30) so it only appears in December instead of running 11 months a year.

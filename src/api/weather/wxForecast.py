@@ -264,6 +264,68 @@ class wxForecast(object):
                 wx_forecast.append([nextdate,summary,wx_icon,temp_hi,temp_lo])
                 index += 1
 
+        if self.data.config.weather_data_feed.lower() in ("openmeteo", "open-meteo", "om"):
+            debug.info("Refreshing Open-Meteo daily weather forecast")
+            from api.weather.openMeteoWeather import _WMO_TO_OWM, _wmo_summary
+            lat = self.data.latlng[0]
+            lon = self.data.latlng[1]
+            temp_unit = "celsius" if self.data.config.weather_units == "metric" else "fahrenheit"
+            wind_unit = "kmh" if self.data.config.weather_units == "metric" else "mph"
+            om = None
+            try:
+                params = {
+                    "latitude": lat, "longitude": lon,
+                    "daily": "weather_code,temperature_2m_max,temperature_2m_min",
+                    "temperature_unit": temp_unit,
+                    "wind_speed_unit": wind_unit,
+                    "timezone": "auto",
+                    "forecast_days": max(2, min(8, int(self.max_days) + 2)),
+                }
+                response = httpx.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=10.0)
+                om = response.json()
+                if response.status_code != 200:
+                    raise Exception(f"Open-Meteo HTTP {response.status_code}: {response.text[:200]}")
+            except Exception as e:
+                debug.error(f"Open-Meteo forecast fetch failed: {e}")
+                self.data.forecast_updated = False
+                self.network_issues = True
+                return
+
+            daily = om.get("daily") if isinstance(om, dict) else None
+            if not isinstance(daily, dict):
+                debug.error(f"Open-Meteo forecast: unexpected response shape: {str(om)[:200]}")
+                self.data.forecast_updated = False
+                self.network_issues = True
+                return
+
+            codes = daily.get("weather_code") or []
+            highs = daily.get("temperature_2m_max") or []
+            lows = daily.get("temperature_2m_min") or []
+            n = min(len(codes), len(highs), len(lows))
+
+            start = 0 if self.show_today else 1
+            for i in range(start, min(start + self.max_days + 1, n)):
+                nextdate = self.currdate + timedelta(days=i)
+                date_str = nextdate.strftime("%a %m/%d")
+                if self.show_today and i == 0:
+                    date_str = "* Today *"
+                code = codes[i] if i < n else 0
+                owm_bucket = _WMO_TO_OWM.get(int(code), 800)
+                # Reuse the same icon-lookup the OWM branch above uses.
+                wx_icon = ''
+                wx_summary = "N/A"
+                for row in range(len(self.icons)):
+                    try:
+                        if int(self.icons[row]["OWMCode"]) == owm_bucket:
+                            wx_icon = self.icons[row]["font"]
+                            wx_summary = self.icons[row].get("Description") or _wmo_summary(code)
+                            break
+                    except (KeyError, ValueError):
+                        continue
+                temp_hi = (str(round(float(highs[i]))) + self.data.wx_units[0]) if highs[i] is not None else "--"
+                temp_lo = (str(round(float(lows[i]))) + self.data.wx_units[0]) if lows[i] is not None else "--"
+                wx_forecast.append([date_str, _wmo_summary(code), wx_icon, temp_hi, temp_lo])
+
         debug.info("New forecast: {}".format(wx_forecast))
 
         if self.data.wx_forecast != wx_forecast:

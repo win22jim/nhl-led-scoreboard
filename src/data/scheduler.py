@@ -9,6 +9,7 @@ from env_canada import ECWeather
 from api.weather.ecAlerts import ecWxAlerts
 from api.weather.ecWeather import ecWxWorker
 from api.weather.nwsAlerts import nwsWxAlerts
+from api.weather.openMeteoWeather import openMeteoWxWorker
 from api.weather.owmWeather import owmWxWorker
 from api.weather.wxForecast import wxForecast
 from nhl_api.workers import GamesWorker, StandingsWorker, StatsLeadersWorker, TeamScheduleWorker
@@ -78,6 +79,7 @@ class SchedulerManager:
     KNOWN_JOB_IDS = {
         "ecWxWorker": "ecWeather",
         "owmWxWorker": "owmWeather",
+        "openMeteoWxWorker": "openMeteoWeather",
         "ecWxAlerts": "ecAlerts",
         "nwsWxAlerts": "nwsAlerts",
         "wxForecast": "forecast",
@@ -247,6 +249,17 @@ class SchedulerManager:
                         sb_logger.error(f"owmWxWorker init failed ({e}); OWM weather disabled until next config change", exc_info=True)
                 else:
                     sb_logger.debug(f"OWM weather worker already scheduled (id={job_id}), skipping add.")
+            elif self.data.config.weather_data_feed.lower() in ("openmeteo", "open-meteo", "om"):
+                job_id = self.KNOWN_JOB_IDS["openMeteoWxWorker"]
+                if not self._job_exists(job_id, existing_ids):
+                    try:
+                        openMeteoWxWorker(self.data, self.data.scheduler)
+                        existing_ids.append(job_id)
+                        sb_logger.info(f"Scheduled Open-Meteo weather worker (id={job_id})")
+                    except Exception as e:
+                        sb_logger.error(f"openMeteoWxWorker init failed ({e}); Open-Meteo weather disabled until next config change", exc_info=True)
+                else:
+                    sb_logger.debug(f"Open-Meteo weather worker already scheduled (id={job_id}), skipping add.")
             else:
                 sb_logger.error("No valid weather providers selected, skipping weather feed")
                 self.data.config.weather_enabled = False

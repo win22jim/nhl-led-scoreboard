@@ -77,7 +77,7 @@
 			"view": "full",
 			"units": "metric",
 			"duration": 60,
-			"data_feed": "EC",
+			"data_feed": "openmeteo",
 			"owm_apikey": "",
 			"update_freq": 5,
 			"show_on_clock": true,

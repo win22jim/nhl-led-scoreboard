@@ -806,10 +806,12 @@
                             "$id": "#/properties/boards/properties/weather/properties/data_feed",
                             "type": "string",
                             "title": "data_feed",
-                            "description": "Where is the observation data coming from. You can use EC for Environment Canada, OWM for Open Weather Map (requires API KEY from https://openweathermap.org/api)",
-                            "default": "",
+                            "description": "Weather data source. Use 'openmeteo' for Open-Meteo (free, global, no key required — recommended), 'EC' for Environment Canada (Canada only, free), or 'OWM' for OpenWeatherMap (requires paid One Call 3.0 subscription on api key)",
+                            "default": "openmeteo",
                             "examples": [
-                                "EC"
+                                "openmeteo",
+                                "EC",
+                                "OWM"
                             ]
                         },
                         "owm_apikey": {
