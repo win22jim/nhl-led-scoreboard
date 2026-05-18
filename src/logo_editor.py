@@ -1031,6 +1031,108 @@ def scoreboard_logs():
     except Exception as e:
         return jsonify({"log": "", "error": str(e)}), 500
 
+
+# Legacy board IDs that aren't discoverable via plugin.json scanning.
+# Mirrors `legacy_boards` in src/boards/boards.py:_register_legacy_boards.
+_LEGACY_BOARDS = [
+    {"id": "seriesticker", "name": "Series Ticker", "description": "Playoff series progress and game-by-game results", "kind": "legacy"},
+    {"id": "clock", "name": "Clock", "description": "Time and date display", "kind": "legacy"},
+    {"id": "pbdisplay", "name": "Push Button Display", "description": "Push button-triggered display", "kind": "legacy"},
+    {"id": "weather", "name": "Weather", "description": "Current weather conditions", "kind": "legacy"},
+    {"id": "wxalert", "name": "Weather Alerts", "description": "Severe weather alert banner", "kind": "legacy"},
+    {"id": "wxforecast", "name": "Weather Forecast", "description": "Multi-day weather forecast", "kind": "legacy"},
+    {"id": "screensaver", "name": "Screensaver", "description": "Animated screensaver", "kind": "legacy"},
+    {"id": "christmas", "name": "Christmas", "description": "Holiday countdown", "kind": "legacy"},
+    {"id": "player_stats", "name": "Player Stats", "description": "Individual player statistics", "kind": "legacy"},
+    {"id": "ovi_tracker", "name": "Ovechkin Tracker", "description": "Ovechkin goal chase tracker", "kind": "legacy"},
+]
+
+
+def _scan_plugin_boards(directory_name):
+    """Scan src/boards/<directory_name>/*/plugin.json for board metadata.
+
+    Mirrors src/boards/boards.py:_load_boards_from_directory so the web UI
+    reflects whatever the runtime would actually load. Returns a list of
+    {id, name, description, kind} dicts. Silent on individual failures so
+    a single bad plugin doesn't take down the whole endpoint.
+    """
+    out = []
+    base = os.path.join(INSTALL_DIR, 'src', 'boards', directory_name)
+    if not os.path.isdir(base):
+        return out
+    for entry in sorted(os.listdir(base)):
+        plugin_path = os.path.join(base, entry, 'plugin.json')
+        if not os.path.isfile(plugin_path):
+            continue
+        try:
+            with open(plugin_path) as f:
+                meta = json.load(f)
+        except Exception:
+            continue
+        if not meta.get('enabled', True):
+            continue
+        plugin_name = meta.get('name', entry)
+        plugin_desc = meta.get('description', '')
+        for b in meta.get('boards', []):
+            board_id = b.get('id')
+            if not board_id:
+                continue
+            out.append({
+                'id': board_id,
+                'name': b.get('name') or plugin_name,
+                'description': b.get('description') or plugin_desc,
+                'kind': directory_name[:-1] if directory_name.endswith('s') else directory_name,
+            })
+    return out
+
+
+@app.route('/api/scoreboard/available-boards', methods=['GET'])
+def scoreboard_available_boards():
+    """Single source of truth for which board IDs the dashboard can offer.
+
+    Replaces the previously-hardcoded ALL_BOARDS list in dashboard.html.
+    Combines legacy boards (registered directly in code) with anything
+    discovered via plugin.json in src/boards/builtins and src/boards/plugins.
+    """
+    try:
+        boards = list(_LEGACY_BOARDS)
+        boards.extend(_scan_plugin_boards('builtins'))
+        boards.extend(_scan_plugin_boards('plugins'))
+        # De-duplicate by id, preferring later (plugin/builtin metadata) over legacy stub.
+        seen = {}
+        for b in boards:
+            seen[b['id']] = b
+        merged = sorted(seen.values(), key=lambda x: x['id'])
+        return jsonify({'boards': merged})
+    except Exception as e:
+        return jsonify({'boards': [], 'error': str(e)}), 500
+
+
+# Canonical list of states the renderer knows about. Display metadata only;
+# the runtime authority is config.schema.json + boards.py state handlers.
+# Adding a new state means: (1) extend this list, (2) extend the schema's
+# states.properties, (3) extend ScoreboardConfig._load_attributes, (4) add a
+# handler in boards.py. All four must agree.
+_STATES = [
+    {'id': 'off_day',                  'name': 'Off Day',                   'icon': '🌙', 'description': 'Regular-season day with no game for your team', 'phase': 'regular_season'},
+    {'id': 'scheduled',                'name': 'Scheduled',                 'icon': '🕐', 'description': 'Before a scheduled game', 'phase': 'gameday'},
+    {'id': 'intermission',             'name': 'Intermission',              'icon': '🏒', 'description': 'Between periods of a live game', 'phase': 'gameday'},
+    {'id': 'post_game',                'name': 'Post Game',                 'icon': '🏁', 'description': 'After your team finishes a game', 'phase': 'gameday'},
+    {'id': 'post_season_active',       'name': 'Playoffs — Team In',        'icon': '🏆', 'description': 'Playoff off-day, your team is still alive', 'phase': 'post_season_active'},
+    {'id': 'post_season_eliminated',   'name': 'Playoffs — Team Out',       'icon': '🥲', 'description': 'Playoff off-day, your team has been eliminated', 'phase': 'post_season_eliminated'},
+    {'id': 'off_season',               'name': 'Off Season',                'icon': '☀️', 'description': 'No playoffs, regular season not yet started', 'phase': 'off_season'},
+]
+
+
+@app.route('/api/scoreboard/states', methods=['GET'])
+def scoreboard_states():
+    """Canonical state list for the dashboard's board-rotation UI.
+
+    Used by dashboard.html to build the state columns dynamically instead of
+    hardcoding HTML for each one.
+    """
+    return jsonify({'states': _STATES})
+
 # =============================================================================
 
 @app.route('/assets/<path:filename>')

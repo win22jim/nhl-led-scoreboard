@@ -9,6 +9,7 @@ from boards.boards import Boards
 from boards.clock import Clock
 from boards.stanley_cup_champions import StanleyCupChampions
 from data.scoreboard import Scoreboard
+from data.season_phase import SeasonPhase
 from renderer.goal import GoalRenderer
 from renderer.penalty import PenaltyRenderer
 from renderer.scoreboard import ScoreboardRenderer
@@ -109,7 +110,19 @@ class MainRenderer:
             if self.data._is_new_day():
                 debug.info('This is a new day')
                 return
-            self.boards._off_day(self.data, self.matrix,self.sleepEvent)
+            # Pick the off-day state list based on the current season phase.
+            # If a phase has an empty board list configured, fall back to the
+            # regular-season off_day list so the matrix isn't blank.
+            phase = getattr(self.data, 'season_phase', SeasonPhase.REGULAR_SEASON)
+            cfg = self.data.config
+            if phase == SeasonPhase.POST_SEASON_ACTIVE and cfg.boards_post_season_active:
+                self.boards._post_season_active(self.data, self.matrix, self.sleepEvent)
+            elif phase == SeasonPhase.POST_SEASON_ELIMINATED and cfg.boards_post_season_eliminated:
+                self.boards._post_season_eliminated(self.data, self.matrix, self.sleepEvent)
+            elif phase == SeasonPhase.OFF_SEASON and cfg.boards_off_season:
+                self.boards._off_season(self.data, self.matrix, self.sleepEvent)
+            else:
+                self.boards._off_day(self.data, self.matrix, self.sleepEvent)
 
             if i >= 1:
                 debug.info("off day data refresh")

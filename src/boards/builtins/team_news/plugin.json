@@ -1,0 +1,17 @@
+{
+  "name": "Team News",
+  "description": "Recent NHL.com headlines for your preferred team",
+  "version": "1.0.0",
+  "author": "NHL LED Scoreboard",
+  "enabled": true,
+  "requirements": {
+    "app_version": ">=2025.01.00"
+  },
+  "boards": [
+    {
+      "id": "team_news",
+      "class_name": "TeamNewsBoard",
+      "module": "board"
+    }
+  ]
+}

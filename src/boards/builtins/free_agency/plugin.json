@@ -1,0 +1,18 @@
+{
+  "name": "Free Agency",
+  "description": "NHL free agent signings and remaining unsigned players",
+  "version": "1.0.0",
+  "author": "NHL LED Scoreboard",
+  "enabled": true,
+  "requirements": {
+    "app_version": ">=2025.01.00",
+    "python_dependencies": ["beautifulsoup4>=4.10"]
+  },
+  "boards": [
+    {
+      "id": "free_agency",
+      "class_name": "FreeAgencyBoard",
+      "module": "board"
+    }
+  ]
+}

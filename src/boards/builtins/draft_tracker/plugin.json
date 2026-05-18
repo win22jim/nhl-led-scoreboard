@@ -1,0 +1,17 @@
+{
+  "name": "Draft Tracker",
+  "description": "NHL Entry Draft picks (live during the draft, rankings outside it)",
+  "version": "1.0.0",
+  "author": "NHL LED Scoreboard",
+  "enabled": true,
+  "requirements": {
+    "app_version": ">=2025.01.00"
+  },
+  "boards": [
+    {
+      "id": "draft_tracker",
+      "class_name": "DraftTrackerBoard",
+      "module": "board"
+    }
+  ]
+}

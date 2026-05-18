@@ -21,7 +21,7 @@
                 {
                     "enum": [
                         "wxalert",
-                        "wxforecast", 
+                        "wxforecast",
                         "scoreticker",
                         "seriesticker",
                         "standings",
@@ -35,7 +35,11 @@
                         "player_stats",
                         "ovi_tracker",
                         "stats_leaders",
-                        "nfl_team"
+                        "nfl_team",
+                        "draft_tracker",
+                        "awards",
+                        "free_agency",
+                        "team_news"
                     ]
                 },
                 {
@@ -44,6 +48,11 @@
                     "description": "Custom plugin board name"
                 }
             ]
+        },
+        "boards_array": {
+            "type": "array",
+            "default": [],
+            "items": { "$ref": "#/definitions/boards_list" }
         }
     },    
     "properties": {
@@ -405,6 +414,33 @@
                         ],
                         "$ref": "#/definitions/boards_list"
                     }
+                },
+                "post_season_active": {
+                    "$id": "#/properties/states/properties/post_season_active",
+                    "type": "array",
+                    "title": "post_season_active",
+                    "description": "Boards displayed during the playoffs when one of your preferred teams is still alive in the bracket and not currently playing.",
+                    "default": [],
+                    "additionalItems": true,
+                    "items": { "$ref": "#/definitions/boards_list" }
+                },
+                "post_season_eliminated": {
+                    "$id": "#/properties/states/properties/post_season_eliminated",
+                    "type": "array",
+                    "title": "post_season_eliminated",
+                    "description": "Boards displayed during the playoffs after your preferred team has been eliminated but the playoffs are still ongoing.",
+                    "default": [],
+                    "additionalItems": true,
+                    "items": { "$ref": "#/definitions/boards_list" }
+                },
+                "off_season": {
+                    "$id": "#/properties/states/properties/off_season",
+                    "type": "array",
+                    "title": "off_season",
+                    "description": "Boards displayed between the end of the playoffs and the start of the next regular season.",
+                    "default": [],
+                    "additionalItems": true,
+                    "items": { "$ref": "#/definitions/boards_list" }
                 }
             }
         },

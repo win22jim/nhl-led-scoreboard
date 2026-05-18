@@ -798,47 +798,8 @@
           <div class="pool-chips" id="poolChips"></div>
         </div>
 
-        <div class="states-grid">
-          <div class="state-card">
-            <div class="state-header">
-              <div class="state-title">🌙 Off Day</div>
-              <div class="state-count" id="count-off_day"></div>
-            </div>
-            <div class="board-list" id="state-off_day" data-state="off_day"
-              ondragover="onDragOver(event)" ondrop="onDrop(event,'off_day')" ondragleave="onDragLeave(event)">
-            </div>
-            <div class="drop-zone" id="dz-off_day" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-off_day')" ondrop="onDrop(event,'off_day')" ondragleave="onDragLeave(event,'dz-off_day')">+ Drop board here</div>
-          </div>
-          <div class="state-card">
-            <div class="state-header">
-              <div class="state-title">🕐 Scheduled</div>
-              <div class="state-count" id="count-scheduled"></div>
-            </div>
-            <div class="board-list" id="state-scheduled" data-state="scheduled"
-              ondragover="onDragOver(event)" ondrop="onDrop(event,'scheduled')" ondragleave="onDragLeave(event)">
-            </div>
-            <div class="drop-zone" id="dz-scheduled" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-scheduled')" ondrop="onDrop(event,'scheduled')" ondragleave="onDragLeave(event,'dz-scheduled')">+ Drop board here</div>
-          </div>
-          <div class="state-card">
-            <div class="state-header">
-              <div class="state-title">🏒 Intermission</div>
-              <div class="state-count" id="count-intermission"></div>
-            </div>
-            <div class="board-list" id="state-intermission" data-state="intermission"
-              ondragover="onDragOver(event)" ondrop="onDrop(event,'intermission')" ondragleave="onDragLeave(event)">
-            </div>
-            <div class="drop-zone" id="dz-intermission" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-intermission')" ondrop="onDrop(event,'intermission')" ondragleave="onDragLeave(event,'dz-intermission')">+ Drop board here</div>
-          </div>
-          <div class="state-card">
-            <div class="state-header">
-              <div class="state-title">🏁 Post Game</div>
-              <div class="state-count" id="count-post_game"></div>
-            </div>
-            <div class="board-list" id="state-post_game" data-state="post_game"
-              ondragover="onDragOver(event)" ondrop="onDrop(event,'post_game')" ondragleave="onDragLeave(event)">
-            </div>
-            <div class="drop-zone" id="dz-post_game" style="margin:0 8px 8px;" ondragover="onDragOver(event,'dz-post_game')" ondrop="onDrop(event,'post_game')" ondragleave="onDragLeave(event,'dz-post_game')">+ Drop board here</div>
-          </div>
+        <div class="states-grid" id="statesGrid">
+          <!-- State columns rendered dynamically from /api/scoreboard/states -->
         </div>
       </div>
 
@@ -1048,6 +1009,125 @@
               <div class="check-grid" id="statCategoryGrid"></div>
               <div class="field-hint">Goalie stats not available here — use Player Stats board with Vejmelka's ID instead.</div>
             </div>
+          </div>
+        </div>
+
+        <!-- DRAFT TRACKER -->
+        <div class="board-accordion" id="acc-draft_tracker">
+          <div class="accordion-header" onclick="toggleAccordion('acc-draft_tracker')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Draft Tracker</div>
+              <span class="board-tag">draft_tracker</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-draft_tracker-rotation_rate" min="3" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:120px;">
+                <label class="field-label">Picks to Show</label>
+                <input type="number" id="b-draft_tracker-picks_to_show" min="1" max="32" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Highlight Preferred Team Picks</div></div>
+              <label class="toggle"><input type="checkbox" id="b-draft_tracker-highlight_preferred" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-hint">Uses the official NHL draft API (api-web.nhle.com). Updates live during the draft.</div>
+          </div>
+        </div>
+
+        <!-- AWARDS -->
+        <div class="board-accordion" id="acc-awards">
+          <div class="accordion-header" onclick="toggleAccordion('acc-awards')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Awards</div>
+              <span class="board-tag">awards</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-awards-rotation_rate" min="3" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label class="field-label">Trophies</label>
+                <select id="b-awards-trophy_set" onchange="markDirty()">
+                  <option value="major">Major awards only</option>
+                  <option value="all">All trophies</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-hint">Source: records.nhl.com/site/api/trophy. Current winners are parsed from prose, so this is best-effort and refreshes weekly.</div>
+          </div>
+        </div>
+
+        <!-- FREE AGENCY -->
+        <div class="board-accordion" id="acc-free_agency">
+          <div class="accordion-header" onclick="toggleAccordion('acc-free_agency')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Free Agency</div>
+              <span class="board-tag">free_agency</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-free_agency-rotation_rate" min="3" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:160px;">
+                <label class="field-label">Show</label>
+                <select id="b-free_agency-mode" onchange="markDirty()">
+                  <option value="signings">Recent signings</option>
+                  <option value="available">Top remaining</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+              <div class="field" style="max-width:120px;">
+                <label class="field-label">Max Entries</label>
+                <input type="number" id="b-free_agency-max_entries" min="1" max="50" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Preferred Team Only</div></div>
+              <label class="toggle"><input type="checkbox" id="b-free_agency-preferred_teams_only" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-hint">Source: spotrac.com (no NHL official feed exists). Scraped page, may break with site redesigns — board fails silently if so.</div>
+          </div>
+        </div>
+
+        <!-- TEAM NEWS -->
+        <div class="board-accordion" id="acc-team_news">
+          <div class="accordion-header" onclick="toggleAccordion('acc-team_news')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Team News</div>
+              <span class="board-tag">team_news</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-team_news-rotation_rate" min="5" max="120" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:120px;">
+                <label class="field-label">Headlines</label>
+                <input type="number" id="b-team_news-max_items" min="1" max="20" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:180px;">
+                <label class="field-label">Refresh (minutes)</label>
+                <input type="number" id="b-team_news-update_freq" min="5" max="240" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-hint">Source: NHL Forge content API (forge-dapi.d3.nhle.com). Follows the first team in your Preferences. RSS feeds were retired by NHL — this is the official replacement.</div>
           </div>
         </div>
 
@@ -1453,9 +1533,27 @@ const ALL_TEAMS = [
   "Sharks","Stars","Wild"
 ];
 
-const ALL_BOARDS = [
-  "standings","scoreticker","seriesticker","clock","weather","wxalert",
-  "player_stats","stats_leaders","team_summary","season_countdown"
+// AVAILABLE_BOARDS and STATES are now populated at runtime from the Python
+// board registry via /api/scoreboard/available-boards and /api/scoreboard/states.
+// The lists below are last-resort fallbacks for when those endpoints fail
+// (e.g. older backend that doesn't expose them) so the UI is still usable.
+let AVAILABLE_BOARDS = [
+  {id:"standings",        name:"Standings",        description:""},
+  {id:"scoreticker",      name:"Scoreticker",      description:""},
+  {id:"seriesticker",     name:"Series Ticker",    description:""},
+  {id:"clock",            name:"Clock",            description:""},
+  {id:"weather",          name:"Weather",          description:""},
+  {id:"wxalert",          name:"Weather Alerts",   description:""},
+  {id:"player_stats",     name:"Player Stats",     description:""},
+  {id:"stats_leaders",    name:"Stats Leaders",    description:""},
+  {id:"team_summary",     name:"Team Summary",     description:""},
+  {id:"season_countdown", name:"Season Countdown", description:""}
+];
+let STATES = [
+  {id:"off_day",       name:"Off Day",       icon:"🌙", description:""},
+  {id:"scheduled",     name:"Scheduled",     icon:"🕐", description:""},
+  {id:"intermission",  name:"Intermission",  icon:"🏒", description:""},
+  {id:"post_game",     name:"Post Game",     icon:"🏁", description:""}
 ];
 
 const STAT_CATEGORIES = [
@@ -1463,14 +1561,18 @@ const STAT_CATEGORIES = [
   "faceoffLeaders","goalsPp","goalsSh"
 ];
 
-const STATES = ["off_day","scheduled","intermission","post_game"];
-
 // ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   buildStatCategories();
+  // Pull the board registry and state list from the backend before config so
+  // the UI reflects whatever the Python loader actually registered. Failures
+  // fall back to the AVAILABLE_BOARDS/STATES baked into this file so the page
+  // still works against an older backend.
+  await loadRegistryMetadata();
+  renderStateColumns();
   loadConfig();
   startStatusPolling();
   startLogPolling();
@@ -1480,6 +1582,59 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+async function loadRegistryMetadata() {
+  try {
+    const [boardsRes, statesRes] = await Promise.all([
+      fetch('/api/scoreboard/available-boards'),
+      fetch('/api/scoreboard/states')
+    ]);
+    if (boardsRes.ok) {
+      const data = await boardsRes.json();
+      if (Array.isArray(data.boards) && data.boards.length) {
+        AVAILABLE_BOARDS = data.boards;
+      }
+    }
+    if (statesRes.ok) {
+      const data = await statesRes.json();
+      if (Array.isArray(data.states) && data.states.length) {
+        STATES = data.states;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load board/state metadata, using fallbacks:', e);
+  }
+}
+
+function renderStateColumns() {
+  const grid = document.getElementById('statesGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  STATES.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'state-card';
+    card.innerHTML = `
+      <div class="state-header">
+        <div class="state-title">${s.icon || ''} ${s.name}</div>
+        <div class="state-count" id="count-${s.id}"></div>
+      </div>
+      ${s.description ? `<div class="state-desc" style="font-size:11px;color:var(--text-dim);padding:0 12px 6px;">${s.description}</div>` : ''}
+      <div class="board-list" id="state-${s.id}" data-state="${s.id}"></div>
+      <div class="drop-zone" id="dz-${s.id}" style="margin:0 8px 8px;">+ Drop board here</div>
+    `;
+    grid.appendChild(card);
+    // Wire drag handlers programmatically so the state id is closed over (avoids
+    // template injection if state ids ever come from user-supplied data).
+    const list = card.querySelector(`#state-${s.id}`);
+    list.addEventListener('dragover', e => onDragOver(e));
+    list.addEventListener('drop', e => onDrop(e, s.id));
+    list.addEventListener('dragleave', e => onDragLeave(e));
+    const dz = card.querySelector(`#dz-${s.id}`);
+    dz.addEventListener('dragover', e => onDragOver(e, `dz-${s.id}`));
+    dz.addEventListener('drop', e => onDrop(e, s.id));
+    dz.addEventListener('dragleave', e => onDragLeave(e, `dz-${s.id}`));
+  });
+}
 
 // ═══════════════════════════════════════════════════════════
 // NAVIGATION
@@ -1588,7 +1743,7 @@ function populateForm(cfg) {
 
   // States / board rotation
   const states = cfg.states || {};
-  STATES.forEach(s => renderStateList(s, states[s] || []));
+  STATES.forEach(s => renderStateList(s.id, states[s.id] || []));
   updatePoolChips();
 
   // Boards
@@ -1630,6 +1785,30 @@ function populateForm(cfg) {
   const ls = boards.stats_leaders || {};
   setVal('b-stats_leaders-rotation_rate', ls.rotation_rate ?? 7);
   setCategories(ls.categories || []);
+
+  // Draft tracker
+  const dt = boards.draft_tracker || {};
+  setVal('b-draft_tracker-rotation_rate', dt.rotation_rate ?? 6);
+  setVal('b-draft_tracker-picks_to_show', dt.picks_to_show ?? 5);
+  setToggle('b-draft_tracker-highlight_preferred', dt.highlight_preferred ?? true);
+
+  // Awards
+  const aw = boards.awards || {};
+  setVal('b-awards-rotation_rate', aw.rotation_rate ?? 6);
+  setSelect('b-awards-trophy_set', aw.trophy_set || 'major');
+
+  // Free agency
+  const fa = boards.free_agency || {};
+  setVal('b-free_agency-rotation_rate', fa.rotation_rate ?? 6);
+  setSelect('b-free_agency-mode', fa.mode || 'signings');
+  setVal('b-free_agency-max_entries', fa.max_entries ?? 10);
+  setToggle('b-free_agency-preferred_teams_only', fa.preferred_teams_only ?? false);
+
+  // Team news
+  const tn = boards.team_news || {};
+  setVal('b-team_news-rotation_rate', tn.rotation_rate ?? 12);
+  setVal('b-team_news-max_items', tn.max_items ?? 5);
+  setVal('b-team_news-update_freq', tn.update_freq ?? 30);
 
   // Weather
   const wx = boards.weather || {};
@@ -1721,12 +1900,7 @@ function buildConfig() {
       disable_penalty_animation: getToggle('cfg-disable_penalty_animation'),
       show_power_play_details: getToggle('cfg-show_power_play_details')
     },
-    states: {
-      off_day: getStateList('off_day'),
-      scheduled: getStateList('scheduled'),
-      intermission: getStateList('intermission'),
-      post_game: getStateList('post_game')
-    },
+    states: Object.fromEntries(STATES.map(s => [s.id, getStateList(s.id)])),
     boards: {
       scoreticker: {
         preferred_teams_only: getToggle('b-scoreticker-preferred_teams_only'),
@@ -1783,6 +1957,26 @@ function buildConfig() {
       stats_leaders: {
         rotation_rate: getNum('b-stats_leaders-rotation_rate', 7),
         categories: getCategories()
+      },
+      draft_tracker: {
+        rotation_rate: getNum('b-draft_tracker-rotation_rate', 6),
+        picks_to_show: getNum('b-draft_tracker-picks_to_show', 5),
+        highlight_preferred: getToggle('b-draft_tracker-highlight_preferred')
+      },
+      awards: {
+        rotation_rate: getNum('b-awards-rotation_rate', 6),
+        trophy_set: getSelect('b-awards-trophy_set')
+      },
+      free_agency: {
+        rotation_rate: getNum('b-free_agency-rotation_rate', 6),
+        mode: getSelect('b-free_agency-mode'),
+        max_entries: getNum('b-free_agency-max_entries', 10),
+        preferred_teams_only: getToggle('b-free_agency-preferred_teams_only')
+      },
+      team_news: {
+        rotation_rate: getNum('b-team_news-rotation_rate', 12),
+        max_items: getNum('b-team_news-max_items', 5),
+        update_freq: getNum('b-team_news-update_freq', 30)
       },
       // Preserve any extra board config from original (team_summary, etc.)
       ...preserveExtraBoards()
@@ -1966,15 +2160,17 @@ function updateStateCount(state) {
 function updatePoolChips() {
   const pool = $('poolChips');
   pool.innerHTML = '';
-  ALL_BOARDS.forEach(b => {
+  AVAILABLE_BOARDS.forEach(meta => {
+    const id = meta.id;
     const chip = document.createElement('div');
     chip.className = 'pool-chip';
-    chip.textContent = b;
+    chip.textContent = id;
+    if (meta.description) chip.title = meta.description;
     chip.draggable = true;
-    chip.dataset.board = b;
+    chip.dataset.board = id;
     chip.addEventListener('dragstart', e => {
-      dragSource = {board: b, fromPool: true};
-      e.dataTransfer.setData('text/plain', JSON.stringify({board: b, fromPool: true}));
+      dragSource = {board: id, fromPool: true};
+      e.dataTransfer.setData('text/plain', JSON.stringify({board: id, fromPool: true}));
       e.dataTransfer.effectAllowed = 'copy';
     });
     pool.appendChild(chip);
@@ -1990,7 +2186,7 @@ function onDragLeave(e, dzId) {
 }
 function onDrop(e, toState) {
   e.preventDefault();
-  ['dz-off_day','dz-scheduled','dz-intermission','dz-post_game'].forEach(id => document.getElementById(id)?.classList.remove('drag-active'));
+  STATES.forEach(s => document.getElementById(`dz-${s.id}`)?.classList.remove('drag-active'));
   let data;
   try { data = JSON.parse(e.dataTransfer.getData('text/plain')); } catch { return; }
   const {board, fromState, fromPool} = data;

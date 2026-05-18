@@ -1,0 +1,7 @@
+{
+  "rotation_rate": 6,
+  "mode": "signings",
+  "max_entries": 10,
+  "preferred_teams_only": false,
+  "update_freq_minutes": 60
+}

@@ -9,6 +9,7 @@ from datetime import date, datetime, timedelta
 from time import sleep
 
 from data.playoffs import Series
+from data.season_phase import SeasonPhase, detect_phase
 from data.status import Status
 from nhl_api import info as nhl_info
 from nhl_api.data import get_game, get_game_overview, get_score_details
@@ -221,8 +222,27 @@ class Data:
         # Fetch the playoff data
         self.refresh_playoff()
 
+        # Season phase (regular / post-season active / post-season eliminated / off-season)
+        # Refreshed after every playoff refresh below. Starts at REGULAR_SEASON until
+        # refresh_playoff completes — safe default if detection can't run yet.
+        self.season_phase = SeasonPhase.REGULAR_SEASON
+        self.refresh_season_phase()
+
         # Stanley cup champions
         # self.cup_winner_id = self.check_stanley_cup_champion()
+
+    def refresh_season_phase(self):
+        """Recompute data.season_phase from current status + playoff state.
+
+        Cheap (no network calls — reads already-loaded objects). Called after
+        playoff data refreshes so the renderer's off-day routing picks the
+        right state list.
+        """
+        try:
+            self.season_phase = detect_phase(self)
+            debug.debug(f"Season phase: {self.season_phase}")
+        except Exception as e:
+            debug.error(f"refresh_season_phase failed, keeping previous value: {e}")
 
     #
     # Date
@@ -720,6 +740,9 @@ class Data:
 
         # Fetch the playoff data
         self.refresh_playoff()
+
+        # Phase depends on playoff state, so recompute after refresh_playoff.
+        self.refresh_season_phase()
 
 
 

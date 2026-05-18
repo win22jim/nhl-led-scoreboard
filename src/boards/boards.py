@@ -706,6 +706,102 @@ class Boards:
                 if not data.pb_trigger or not data.wx_alert_interrupt or not data.screensaver or not data.mqtt_trigger:
                     bord_index += 1
 
+    def _run_off_day_like_rotation(self, data, matrix, sleepEvent, boards_list_source, state_label):
+        """Shared rotation loop for off-day-style states (off_day + season phases).
+
+        Mirrors `_off_day` behavior: honors pushbutton, MQTT, weather-alert, and
+        screensaver interrupts; falls back gracefully if a board fails to render.
+        Used by the season-phase states added in 2026 (post_season_active,
+        post_season_eliminated, off_season) so we don't quadruplicate the loop.
+
+        Empty board lists return immediately rather than spin forever.
+        """
+        boards_list = list(boards_list_source) if boards_list_source else []
+        if not boards_list:
+            # Empty state list — fall back to clock so the matrix isn't blank
+            # while we wait for the next refresh tick. Caller (renderer main loop)
+            # is responsible for not hammering this path.
+            Clock(data, matrix, sleepEvent, duration=15)
+            return
+
+        bord_index = 0
+        while True:
+            board_id = boards_list[bord_index]
+            data.curr_board = board_id
+            debug.debug(f"{state_label} board index: {bord_index} board: {board_id}")
+
+            if data.pb_trigger:
+                debug.info(f"PushButton triggered....will display {data.config.pushbutton_state_triggered1} board overriding {state_label} -> {board_id}")
+                if not data.screensaver:
+                    data.pb_trigger = False
+                board_id = data.config.pushbutton_state_triggered1
+                data.curr_board = board_id
+                bord_index -= 1
+
+            if data.mqtt_trigger:
+                debug.info(f"MQTT triggered....will display {data.mqtt_showboard} board overriding {state_label} -> {boards_list[bord_index]}")
+                if not data.screensaver:
+                    data.mqtt_trigger = False
+                board_id = data.mqtt_showboard
+                data.curr_board = board_id
+                bord_index -= 1
+
+            if data.wx_alert_interrupt:
+                debug.info(f"Weather Alert triggered in {state_label} loop....will display weather alert board")
+                data.wx_alert_interrupt = False
+                board_id = "wxalert"
+                data.curr_board = "wxalert"
+                bord_index -= 1
+
+            if data.screensaver:
+                if not data.pb_trigger:
+                    debug.info(f"Screensaver triggered in {state_label} loop....")
+                    board_id = "screensaver"
+                    data.curr_board = "screensaver"
+                    data.prev_board = boards_list[bord_index]
+                    bord_index -= 1
+                else:
+                    data.pb_trigger = False
+
+            try:
+                debug.debug(f"Displaying {state_label} board: {board_id}")
+                self.render_board(board_id, data, matrix, sleepEvent)
+            except ValueError:
+                debug.error(f"Board not found: {board_id}. Check board exists and config.json is correct")
+            except Exception as e:
+                # Keep the loop alive even if a single board throws. Without this,
+                # any uncaught error in a board's render() would crash the renderer
+                # and tank uptime; we've fixed several specific cases (playoffs.py,
+                # seriesticker) but a defense-in-depth net here protects future ones.
+                debug.error(f"Board '{board_id}' raised in {state_label} loop: {e}", exc_info=True)
+
+            if bord_index >= (len(boards_list) - 1):
+                return
+            else:
+                if not data.pb_trigger or not data.wx_alert_interrupt or not data.screensaver or not data.mqtt_trigger:
+                    bord_index += 1
+
+    def _post_season_active(self, data, matrix, sleepEvent):
+        self._run_off_day_like_rotation(
+            data, matrix, sleepEvent,
+            data.config.boards_post_season_active,
+            "post_season_active",
+        )
+
+    def _post_season_eliminated(self, data, matrix, sleepEvent):
+        self._run_off_day_like_rotation(
+            data, matrix, sleepEvent,
+            data.config.boards_post_season_eliminated,
+            "post_season_eliminated",
+        )
+
+    def _off_season(self, data, matrix, sleepEvent):
+        self._run_off_day_like_rotation(
+            data, matrix, sleepEvent,
+            data.config.boards_off_season,
+            "off_season",
+        )
+
     def fallback(self, data, matrix, sleepEvent):
         Clock(data, matrix, sleepEvent)
 

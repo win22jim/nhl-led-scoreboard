@@ -40,7 +40,10 @@
 			"scoreticker",
 			"standings",
 			"clock"
-		]
+		],
+		"post_season_active": [],
+		"post_season_eliminated": [],
+		"off_season": []
 	},
 
 	"boards": {
@@ -112,6 +115,29 @@
 			"use_large_font": false,
 			"scroll_speed": 0.2,
 			"limit": 10
+		},
+		"draft_tracker": {
+			"rotation_rate": 6,
+			"picks_to_show": 5,
+			"highlight_preferred": true,
+			"update_freq_minutes": 5
+		},
+		"awards": {
+			"rotation_rate": 6,
+			"trophy_set": "major",
+			"update_freq_hours": 24
+		},
+		"free_agency": {
+			"rotation_rate": 6,
+			"mode": "signings",
+			"max_entries": 10,
+			"preferred_teams_only": false,
+			"update_freq_minutes": 60
+		},
+		"team_news": {
+			"rotation_rate": 12,
+			"max_items": 5,
+			"update_freq": 30
 		}
 	},
 	"sbio": {

@@ -146,6 +146,12 @@ class ScoreboardConfig:
         self.boards_scheduled = json["states"]["scheduled"]
         self.boards_intermission = json["states"]["intermission"]
         self.boards_post_game = json["states"]["post_game"]
+        # Season-phase states (added 2026). Optional in config.json; default to [] so
+        # existing configs keep working without edits. Renderer falls back to
+        # boards_off_day when a phase-state list is empty.
+        self.boards_post_season_active = json["states"].get("post_season_active", [])
+        self.boards_post_season_eliminated = json["states"].get("post_season_eliminated", [])
+        self.boards_off_season = json["states"].get("off_season", [])
 
         # Boards configuration
         # Scoreticker (preferred_teams_only used by data.py for game filtering)

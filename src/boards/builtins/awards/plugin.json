@@ -1,0 +1,17 @@
+{
+  "name": "Awards",
+  "description": "NHL trophy winners (Stanley Cup, Hart, Norris, Vezina, ...)",
+  "version": "1.0.0",
+  "author": "NHL LED Scoreboard",
+  "enabled": true,
+  "requirements": {
+    "app_version": ">=2025.01.00"
+  },
+  "boards": [
+    {
+      "id": "awards",
+      "class_name": "AwardsBoard",
+      "module": "board"
+    }
+  ]
+}
