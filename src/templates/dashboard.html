@@ -318,7 +318,10 @@
   .tags-add-btn:hover { color: var(--primary-hi); }
 
   /* ── BOARD ROTATION ── */
-  .states-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  /* `align-items: start` keeps each card sized to its own content height
+     so that collapsing a card in one column doesn't leave a tall empty
+     placeholder when its row partner is still expanded. */
+  .states-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
   .state-card {
     background: var(--bg-card); border: 1px solid var(--border);
     border-radius: var(--radius); overflow: hidden;
