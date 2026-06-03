@@ -137,21 +137,14 @@ All boards are crash-hardened: any fetch or parse failure renders an empty state
 
 ---
 
-> [!IMPORTANT]
-> V2026.3.0 will be the last release of the scoreboard based on the orginal code base.  I am moving to focus on the next generation of the scoreboard.
+> [!NOTE]
+> **This fork is actively maintained.** Bug fixes, new features, and compatibility updates will continue here. See the [Changes in this Fork](#changes-in-this-fork) section above for what's been added.
 
 # Releases
 
 Click on button to go to release notes.
 
-| Latest Stable | Latest nhl_setup |
-| --- | --- |
-|[![GitHub release (latest by date)](https://img.shields.io/github/v/release/falkyre/nhl-led-scoreboard?sort=date&display_name=release&cacheSeconds=600)](https://github.com/falkyre/nhl-led-scoreboard/releases/latest)|[![GitHub release (latest by date)](https://img.shields.io/github/v/release/falkyre/nhl-setup?sort=date&display_name=release&cacheSeconds=600)](https://github.com/falkyre/nhl-setup/releases/latest) |
-
-# NHL LED Scoreboard Raspberry Pi Image 
-
-[![Create Release - Dietpi Image](https://github.com/falkyre/nhl-led-scoreboard-img/actions/workflows/dietpi-release.yml/badge.svg)](https://github.com/falkyre/nhl-led-scoreboard-img/actions/workflows/dietpi-release.yml)
-[![GitHub release (latest by date)](https://badgers.space/github/release/falkyre/nhl-led-scoreboard-img?label=Version)](https://github.com/falkyre/nhl-led-scoreboard-img/releases/latest)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/win22jim/nhl-led-scoreboard?sort=date&display_name=release&cacheSeconds=600)](https://github.com/win22jim/nhl-led-scoreboard/releases/latest)
 
 [![discord button](assets/images/discord_button.png)](https://discord.gg/CWa5CzK)
 # IMPORTANT (PLEASE READ)
@@ -259,30 +252,32 @@ If you need help, there is a Discord that still runs.  See above for the link.  
 
 
 <details>
-<summary>Old Readme sections, read if you want some history</summary>
+<summary>Historical notes from upstream maintainers</summary>
+
+> **Note from this fork's maintainer:** The upstream project went through several periods of uncertainty. Those notices are preserved below for historical context. **This fork (win22jim/nhl-led-scoreboard) is actively maintained** — the abandonment notices no longer apply here.
+
+---
 
 ## (2025-07-08) We now have an image and some Mammoth team names.
 Effective release 2025.7.0, the minimum supported version of Python is 3.11.  If you run the latest rpiOS built on Debian Bookworm, you are ok.  Anything lower than Python 3.11, the install script WILL NOT COMPLETE with the proper Python libraries required to run the scoreboard.
 
-I've switched over to using CALVER(https://calver.org/) versioning.  This will follow the YYYY.MM.minor numbering scheme.  So anything released n March of 2025 will have a 2025.3.x version number.  I've done this to step away from the old versioning and not keep updating the last V1.9.xxxxxx.
+I've switched over to using CALVER(https://calver.org/) versioning.  This will follow the YYYY.MM.minor numbering scheme.  So anything released in March of 2025 will have a 2025.3.x version number.  I've done this to step away from the old versioning and not keep updating the last V1.9.xxxxxx.
 
-As of 2025.3.0, you can now download and run the scoreboard in a web browser using docker or podman.  The images are published here:  https://github.com/falkyre/nhl-led-scoreboard/pkgs/container/nhl-led-scoreboard and are two platforms (linux/amd64 or linux/arm64).  This is completely seperate from running the scoreboard on physical hardware and is just another way to enjoy this tremendous application.  The docker-compose.yml file will create a container with the code in this repository and run a webserver on port 8888 that will display the scoreboard.  If you don't run the docker-compose up from where you downloaded this repository, you'll have to change the ./config/config.json line in the docker-compose file to point to where you locally have a config.json file.  Change the TZ environment variable to reflect your timezone.  You can change the ports to use a different host based port if you want to (the format is host port:container port).  Don't change the container port number from 8888.
+As of 2025.3.0, you can now download and run the scoreboard in a web browser using docker or podman.  The images are published here and are two platforms (linux/amd64 or linux/arm64).  This is completely separate from running the scoreboard on physical hardware and is just another way to enjoy this tremendous application.
 
-## (2025-01-10) It's ALIVE ... All hail V1.9.0 ... for now
-This version of the NHL LED Scoreboard has been updated to work with the latest changes to the NHL API along with other additions that were planned for the next release.  This includes MQTT, a change to remove pyowm library as the OWM API it used has been deprecated.  Also, removed the use of the geocoder library as it was failing on doing a location lookup.  This release also adds the RGB Emulator code so you can also run the Web version of the NHL LED Scoreboard if you want to (use the --emulated command line)
+## (2025-01-10) It's ALIVE ... All hail V1.9.0
+This version of the NHL LED Scoreboard has been updated to work with the latest changes to the NHL API along with other additions that were planned for the next release.  This includes MQTT, a change to remove pyowm library as the OWM API it used has been deprecated.  Also removed the use of the geocoder library as it was failing on doing a location lookup.  This release also adds the RGB Emulator code so you can run the Web version of the NHL LED Scoreboard (use the --emulated command line).
 
-## (2024-05-17) THE END ... For now...
-After what seems to be some minor change in the NHL API, new issues arose which rendered the software unusable. I have been working on a new version built from the ground up and decided to put my focus on it instead of fixing and supporting this one. I therefore decided to Archive this repository. The plan is to roll out the new version in the fall, in time for the 2024-2025 NHL season.
+## ~~(2024-05-17) THE END ... For now~~
+~~After what seems to be some minor change in the NHL API, new issues arose which rendered the software unusable. I have been working on a new version built from the ground up and decided to put my focus on it instead of fixing and supporting this one. I therefore decided to Archive this repository.~~
 
-## (2023-11-09)
-old stats api is officially dead. please read below on the current state of the project. only thing that change is that the plan is that Ill start from scratch for the next version. No time frame on anything for now for reasons stated below
+*This fork picked up where upstream left off. Development continues.*
 
-## (2023-10-11) Indefinitly on Hold. More changes and complications. Limited free time. Future uncertain (Don't build this for a friend).
-Over the last few weeks, we discovered that the NHL API has changed to a new one and the previous version is now unreliable (even tho it came back to life after being out for a few days). More so, a lot of packages, plugins and more recently, the OS we use had a major update and the software stack we use to make this project work changed a lot. This means that the current documentation of this project is now partially deprecated. If you have enough know-how, you can make the project work. Due to unforeseen events in my life, I no longer have the same amount of free time to dedicate to this project, keep it up to date and make it easy to use. 
+## ~~(2023-11-09) Old stats API dead, starting from scratch~~
+~~Old stats api is officially dead. The plan is to start from scratch for the next version. No time frame on anything for now.~~
 
-The current situation is, that if you have a working scoreboard, it should be fine while the previous NHL API is operational. If your scoreboard is not working at the moment, you may try the image version of the scoreboard offered by Falkyre. He's currently working on fixing a few things related to software changes and OS changes, but I believe he will have it up and running in the coming days. Again, this uses the previous version of the NHL API and thus, its fate is the same. 
-
-What I'm focusing on with the little time I find is fixing the code of this project to use the new NHL API. This will take a bit of time. 
+## ~~(2023-10-11) Indefinitely on Hold~~
+~~Over the last few weeks, we discovered that the NHL API has changed to a new one and the previous version is now unreliable. Due to unforeseen events in my life, I no longer have the same amount of free time to dedicate to this project, keep it up to date and make it easy to use.~~
 
 
 ## Compatible Raspberry pi OS
