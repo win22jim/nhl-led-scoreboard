@@ -422,6 +422,8 @@ class Data:
                     self.check_all_pref_games_final()
                     # TODO: This shouldn't be needed to get the fact that your preferred team has a game today
                     self.check_game_priority()
+                elif self.is_pref_team_offday() and self.is_finals_game_day() and self.config.live_mode:
+                    self.select_finals_game()
 
                 self.network_issues = False
                 break
@@ -496,6 +498,32 @@ class Data:
                             g["homeTeam"]["name"]["default"],
                         )
                     )
+
+    def select_finals_game(self):
+        """Pick the best Stanley Cup Finals game to display when follow_finals is active."""
+        finals_games = [g for g in self.games if g.get("gameType", 2) == 3]
+        if not finals_games:
+            return
+        self.current_game_id = finals_games[0]["id"]
+        earliest_start_time = datetime.strptime(finals_games[0]["startTimeUTC"], '%Y-%m-%dT%H:%M:%SZ')
+        for g in finals_games:
+            try:
+                game_obj = get_game(g["id"])
+                game_is_final = game_obj.is_final
+            except Exception as e:
+                debug.error("select_finals_game: failed to get game {}: {}".format(g.get("id"), e))
+                game_is_final = g.get("gameState", "") in ("FINAL", "OVER", "OFF")
+            if not game_is_final:
+                if datetime.strptime(g["startTimeUTC"], '%Y-%m-%dT%H:%M:%SZ') <= datetime.utcnow():
+                    self.current_game_id = g["id"]
+                    debug.info("Follow Finals: live game {} vs {}".format(
+                        g["awayTeam"]["name"]["default"], g["homeTeam"]["name"]["default"]
+                    ))
+                    return
+                if datetime.strptime(g["startTimeUTC"], "%Y-%m-%dT%H:%M:%SZ") < earliest_start_time:
+                    earliest_start_time = datetime.strptime(g["startTimeUTC"], '%Y-%m-%dT%H:%M:%SZ')
+                    self.current_game_id = g["id"]
+        debug.info("Follow Finals: selected game id={}".format(self.current_game_id))
 
     def other_games(self):
         if not self.is_pref_team_offday() and self.config.live_mode:
@@ -767,6 +795,14 @@ class Data:
 
     def is_nhl_offday(self):
         return len(self.games) == 0
+
+    def is_finals_game_day(self):
+        """True when follow_finals is on, we're in the Stanley Cup Finals round, and there's a Finals game today."""
+        if not getattr(self.config, 'follow_finals', False):
+            return False
+        if not getattr(self, 'stanleycup_round', False):
+            return False
+        return any(g.get("gameType", 2) == 3 for g in self.games)
 
     def refresh_data(self):
         """

@@ -835,6 +835,17 @@
             <label class="toggle"><input type="checkbox" id="cfg-show_power_play_details" onchange="markDirty()"><span class="toggle-slider"></span></label>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px;">Playoffs</div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Follow Finals</div>
+              <div class="toggle-desc">When your preferred team isn't playing, show the Stanley Cup Finals live scoreboard instead of the regular board rotation.</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="cfg-follow_finals" onchange="markDirty()"><span class="toggle-slider"></span></label>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ BOARD ROTATION TAB ═══ -->
@@ -1924,6 +1935,7 @@ function populateForm(cfg) {
   setToggle('cfg-goal_pref_only', anim.pref_team_only);
   setToggle('cfg-disable_penalty_animation', prefs.disable_penalty_animation);
   setToggle('cfg-show_power_play_details', prefs.show_power_play_details);
+  setToggle('cfg-follow_finals', prefs.follow_finals);
 
   // States / board rotation
   const states = cfg.states || {};
@@ -2103,7 +2115,8 @@ function buildConfig() {
       sog_display_frequency: getNum('cfg-sog_display_frequency', 4),
       goal_animations: { pref_team_only: getToggle('cfg-goal_pref_only') },
       disable_penalty_animation: getToggle('cfg-disable_penalty_animation'),
-      show_power_play_details: getToggle('cfg-show_power_play_details')
+      show_power_play_details: getToggle('cfg-show_power_play_details'),
+      follow_finals: getToggle('cfg-follow_finals')
     },
     states: Object.fromEntries(STATES.map(s => [s.id, getStateList(s.id)])),
     boards: {

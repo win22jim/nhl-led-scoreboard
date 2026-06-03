@@ -279,6 +279,16 @@
                             ]
                         }
                     }
+                },
+                "follow_finals": {
+                    "$id": "#/properties/preferences/properties/follow_finals",
+                    "type": "boolean",
+                    "title": "follow_finals",
+                    "description": "When enabled and your preferred team is not playing, show the Stanley Cup Finals as if it were your team's game.",
+                    "default": false,
+                    "examples": [
+                        true
+                    ]
                 }
             }
         },

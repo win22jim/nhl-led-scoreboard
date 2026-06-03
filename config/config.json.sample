@@ -15,7 +15,8 @@
         	"pref_team_only": true
     	},
 		"disable_penalty_animation": false,
-		"show_power_play_details": false
+		"show_power_play_details": false,
+		"follow_finals": false
 	},
 
 	"states":{
