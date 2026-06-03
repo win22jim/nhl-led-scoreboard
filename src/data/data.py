@@ -202,6 +202,9 @@ class Data:
         # Set the pointer to the first game in the list of Pref Games
         #self.current_game_index = 0
 
+        # Current game being displayed (set by check_game_priority / select_finals_game)
+        self.current_game_id = None
+
         # Fetch the games for today
         self.refresh_games()
 

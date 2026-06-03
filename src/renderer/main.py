@@ -91,8 +91,13 @@ class MainRenderer:
                     self.__render_offday()
                 elif self.data.is_pref_team_offday():
                     if self.data.is_finals_game_day():
-                        debug.info("Follow Finals: Showing Stanley Cup Finals game")
-                        self.__render_game_day()
+                        self.data.select_finals_game()
+                        if self.data.current_game_id is not None:
+                            debug.info("Follow Finals: Showing Stanley Cup Finals game")
+                            self.__render_game_day()
+                        else:
+                            debug.info("Follow Finals: Finals active but no game selected today")
+                            self.__render_offday()
                     else:
                         debug.info("Your preferred teams are Off today")
                         self.__render_offday()
