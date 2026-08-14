@@ -1,0 +1,30 @@
+{
+    "_default": {
+        "position": [0, 0],
+        "align": "left-top"
+    },
+    "api_status": {
+        "logo": {
+            "position": [72, 0],
+            "align": "left"
+        },
+        "gradient": {
+            "position": [-8, 0],
+            "align": "left"
+        },
+        "headline_line1": {
+            "position": [2, 8],
+            "align": "left-top",
+            "font": "large"
+        },
+        "headline_line2": {
+            "position": [2, 26],
+            "align": "left-top",
+            "font": "large"
+        },
+        "scroll": {
+            "position": [0, 52],
+            "align": "left-top"
+        }
+    }
+}

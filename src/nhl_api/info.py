@@ -19,11 +19,23 @@ DEPRECATION NOTICE:
 """
 import json
 import logging
+import os
 
 import nhl_api.data
 from nhl_api.nhl_client import client
 
 debug = logging.getLogger("scoreboard")
+
+
+def _load_backup_teams():
+    """Read the bundled team table shipped in the repo.
+
+    Path is resolved relative to this module rather than the process cwd so it
+    works no matter where the app is launched from.
+    """
+    backup_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'backup_teams_data.json')
+    with open(backup_path) as f:
+        return json.load(f)["data"]
 
 
 def team_info():
@@ -33,9 +45,7 @@ def team_info():
     # data = nhl_api.data.get_teams()
     # parsed = data.json()
     # Falling back to this for now until NHL stops screwing up their own API
-    f = open('src/data/backup_teams_data.json')
-    parsed = json.load(f)
-    teams = parsed["data"]
+    teams = _load_backup_teams()
     team_dict = {}
     for team in teams:
         team_dict[team["triCode"]] = team["id"]
@@ -50,6 +60,28 @@ def team_info():
         team_info = TeamInfo(team, team_details)
         teams_data[raw_team_id] = team_info
 
+    return teams_data
+
+
+def team_info_offline():
+    """Build the team table from the bundled backup file only — no network.
+
+    Used when the NHL API is unreachable at startup so the scoreboard can still
+    boot and display something (the api_status board, the clock, weather, ...)
+    instead of dying in a restart loop.
+
+    The returned TeamInfo objects carry `record=None`: we know each team's id,
+    name and abbreviation (enough to draw logos and labels) but have no
+    standings data. Callers that need `.record` must check `data.nhl_api_down`
+    or `data.nhl_teams_are_stale` first — the board rotation substitutes the
+    api_status board for those boards while the API is down.
+    """
+    teams_data = {}
+    for team in _load_backup_teams():
+        team_details = TeamDetails(team["id"], team["fullName"], team["triCode"])
+        teams_data[team["id"]] = TeamInfo(None, team_details)
+
+    debug.warning("Built team list OFFLINE from bundled backup data ({} teams, no standings)".format(len(teams_data)))
     return teams_data
 
 def team_next_game_by_code(team_code):

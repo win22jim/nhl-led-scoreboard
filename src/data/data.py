@@ -193,6 +193,16 @@ class Data:
         # Flag for network issues
         self.network_issues = False
 
+        # NHL API health. `nhl_api_down` is the coarse "the NHL API is not
+        # answering" flag that drives the api_status board and the red corner
+        # indicator; `nhl_teams_are_stale` means we booted (or are running) off
+        # the bundled backup team list rather than live data, so anything that
+        # needs standings/records is not trustworthy yet.
+        self.nhl_api_down = False
+        self.nhl_api_down_since = None
+        self.nhl_api_last_error = None
+        self.nhl_teams_are_stale = False
+
         # Get the teams info
         self.teams_info = self.get_teams()
         # So oddly enough, there are a handful of situations where the API does not include the team_id
@@ -373,11 +383,78 @@ class Data:
     #
     # Daily NHL Data
 
+    def mark_nhl_api_down(self, error=None):
+        """Record that the NHL API is not answering.
+
+        Idempotent — repeated calls keep the original `since` timestamp so the
+        api_status board can report how long the outage has lasted.
+        """
+        self.network_issues = True
+        self.nhl_api_last_error = str(error) if error is not None else None
+        if not self.nhl_api_down:
+            self.nhl_api_down = True
+            self.nhl_api_down_since = datetime.now()
+            debug.warning("NHL API marked DOWN: {}".format(self.nhl_api_last_error))
+
+    def mark_nhl_api_up(self):
+        """Record a successful NHL API call, clearing the outage state."""
+        self.network_issues = False
+        if self.nhl_api_down:
+            outage = ""
+            if self.nhl_api_down_since:
+                outage = " after {}".format(str(datetime.now() - self.nhl_api_down_since).split(".")[0])
+            debug.info("NHL API recovered{}".format(outage))
+        self.nhl_api_down = False
+        self.nhl_api_down_since = None
+        self.nhl_api_last_error = None
+
+    def _network_attempts(self, normal=5):
+        """Retry budget for one data refresh.
+
+        Every attempt costs a full client timeout ladder (~30s), so once we
+        already know the API is unreachable, spending 5 of them on each
+        subsequent call freezes the board rotation for minutes at a time —
+        refresh_data() runs between passes. Probe once instead and let the
+        rotation keep moving; retry_nhl_api_if_down() is what brings us back.
+        """
+        return 1 if self.nhl_api_down else normal
+
+    def retry_nhl_api_if_down(self):
+        """Cheap liveness probe used while the API is down.
+
+        Called from refresh_data() between board rotations. Makes exactly ONE
+        attempt (not the full get_teams() ladder) so a rotation never stalls,
+        and reloads the real team table the moment the API answers — otherwise
+        a degraded boot would stay degraded until the next new-day refresh.
+        """
+        if not self.nhl_api_down:
+            return False
+        try:
+            teams = nhl_info.team_info()
+        except NETWORK_ERRORS as error_message:
+            debug.debug("NHL API still down: {}".format(error_message))
+            self.nhl_api_last_error = str(error_message)
+            return False
+
+        self.teams_info = teams
+        self.nhl_teams_are_stale = False
+        self.teams_info_by_abbrev = self.get_teams_by_code()
+        # Preferred-team ids were resolved against the offline table, whose
+        # names come from `fullName` in the backup file rather than the API's
+        # `teamName.default`. Re-resolve them now that we have live data,
+        # otherwise a degraded boot could leave pref_teams permanently wrong.
+        try:
+            self.pref_teams = self.get_pref_teams_id()
+        except Exception as e:
+            debug.warning(f"Could not re-resolve preferred teams after recovery: {e}")
+        self.mark_nhl_api_up()
+        debug.info("NHL API is back — reloaded live team data")
+        return True
+
     def get_teams(self):
         """Fetch the league-wide team table.
 
-        Everything downstream (renderers, boards, preferred-team lookup) needs
-        this, so there is no useful degraded mode. Two things matter here:
+        Three things matter here:
 
         1. Catch what the API layer actually raises. This loop used to catch
            only ValueError, which NHLAPIError is not a subclass of — so an API
@@ -386,22 +463,25 @@ class Data:
         2. Never fall off the end returning None. A None here does not surface
            as a network problem; it surfaces later as an AttributeError inside
            get_teams_by_code(), which hides the real cause.
-
-        The loading screen stays on the matrix while we retry, so a transient
-        NHL outage now looks like a slow start instead of a restart loop.
+        3. Never let an outage stop the scoreboard from booting. If the API
+           never answers we fall back to the bundled team list so the rest of
+           the app can start, flag the outage, and let the api_status board and
+           the corner indicator tell the user what is going on. A dark matrix
+           in a restart loop is the worst possible outcome for an appliance.
         """
         last_error = None
         for attempt in range(1, TEAMS_FETCH_MAX_ATTEMPTS + 1):
             try:
                 teams = nhl_info.team_info()
-                self.network_issues = False
+                self.nhl_teams_are_stale = False
+                self.mark_nhl_api_up()
                 if attempt > 1:
                     debug.info("Got the list of Teams after {} attempts.".format(attempt))
                 return teams
 
             except NETWORK_ERRORS as error_message:
                 last_error = error_message
-                self.network_issues = True
+                self.mark_nhl_api_down(error_message)
                 debug.error(
                     "Failed to get the list of Teams (attempt {}/{}): {}".format(
                         attempt, TEAMS_FETCH_MAX_ATTEMPTS, error_message
@@ -412,10 +492,15 @@ class Data:
                     # half-second only spams the log and the server.
                     sleep(min(NETWORK_RETRY_SLEEP_TIME * (2 ** (attempt - 1)), TEAMS_FETCH_MAX_BACKOFF))
 
-        raise NHLAPIError(
+        debug.error(
             "Could not load the NHL team list after {} attempts — the NHL API appears to be "
             "unreachable. Last error: {}".format(TEAMS_FETCH_MAX_ATTEMPTS, last_error)
         )
+        debug.warning("Starting in degraded mode using the bundled team list; boards that need "
+                      "live NHL data will show the API-unavailable screen until it recovers.")
+        self.mark_nhl_api_down(last_error)
+        self.nhl_teams_are_stale = True
+        return nhl_info.team_info_offline()
 
     def get_teams_by_code(self):
         teams_data = {}
@@ -450,17 +535,20 @@ class Data:
         if not hasattr(self, "pref_games"):
             self.pref_games = []
 
-        attempts_remaining = 5
+        last_error = None
+        attempts_remaining = self._network_attempts()
         while attempts_remaining > 0:
             try:
                 # Try to use cached data from GamesWorker first (if available)
                 from nhl_api.workers import GamesWorker
                 cached_data = GamesWorker.get_cached_data()
 
+                served_from_cache = False
                 if cached_data and cached_data.date == date(self.year, self.month, self.day):
                     # Use cached data - much faster and reduces API calls
                     debug.debug("refresh_games: Using cached data from GamesWorker")
                     data = {'games': cached_data.raw}
+                    served_from_cache = True
                 else:
                     # Fall back to fetching fresh data if cache miss or different day
                     debug.debug("refresh_games: Cache miss, fetching fresh data")
@@ -487,15 +575,28 @@ class Data:
                 elif self.is_pref_team_offday() and self.is_finals_game_day() and self.config.live_mode:
                     self.select_finals_game()
 
-                self.network_issues = False
+                if not served_from_cache:
+                    # Only a real round-trip proves the API is back. A cache hit
+                    # from GamesWorker succeeds happily during an outage, and
+                    # treating that as recovery would clear the outage flag (and
+                    # the corner indicator) while the API is still dead.
+                    self.mark_nhl_api_up()
                 break
 
             except NETWORK_ERRORS as error_message:
+                last_error = error_message
                 self.network_issues = True
                 debug.error("Failed to refresh the list of games. {} attempt remaining.".format(attempts_remaining))
                 debug.error(error_message)
                 attempts_remaining -= 1
                 sleep(NETWORK_RETRY_SLEEP_TIME)
+                if attempts_remaining == 0:
+                    # Exhausted every retry — treat as a real outage so the
+                    # rotation switches to the api_status board and lights the
+                    # corner indicator. Marking only on exhaustion (rather than
+                    # per failed attempt) keeps a single blip from flipping the
+                    # display into outage mode.
+                    self.mark_nhl_api_down(last_error)
 
             except IndexError as error_message:
                 if attempts_remaining == 1:
@@ -621,7 +722,7 @@ class Data:
 
     # This is the function that will determine the state of the board (Offday, Gameday, Live etc...).
     def get_status(self):
-        attempts_remaining = 5
+        attempts_remaining = self._network_attempts()
         while attempts_remaining > 0:
             try:
                 debug.info("getting status")
@@ -664,7 +765,7 @@ class Data:
 
         # Cache miss - fetch from API as fallback
         debug.debug(f"refresh_overview: Cache miss, fetching from API for game {self.current_game_id}")
-        attempts_remaining = 5
+        attempts_remaining = self._network_attempts()
         while attempts_remaining > 0:
             try:
                 self.overview = get_game_overview(self.current_game_id)
@@ -768,7 +869,7 @@ class Data:
             self.series = []
         if not hasattr(self, "playoffs"):
             self.playoffs = None
-        attempts_remaining = 5
+        attempts_remaining = self._network_attempts()
         while attempts_remaining > 0:
             try:
                 # Get the plaoffs data from the nhl api
@@ -881,11 +982,29 @@ class Data:
         # Flag to determine when to refresh data
         self.needs_refresh = True
 
-        # Flag for network issues
+        # Flag for network issues. Note this is NOT the same as nhl_api_down:
+        # this is a per-refresh scratch flag that the retry loops below set on
+        # failure, whereas nhl_api_down is sticky outage state cleared only by
+        # an actual successful call (mark_nhl_api_up).
         self.network_issues = False
+
+        # If we're in degraded mode, probe once to see if the API is back and
+        # reload the real team table if so.
+        was_down = self.nhl_api_down
+        recovered = self.retry_nhl_api_if_down()
 
         # Parse today's date and see if we should use today or yesterday
         self.refresh_current_date()
+
+        if was_down and not recovered:
+            # The probe above just confirmed the API is still unreachable, and
+            # every attempt costs a full ~30s client timeout ladder. Skipping
+            # the games fetch here keeps one refresh to a single probe instead
+            # of two, so the board rotation isn't frozen for a minute at a time
+            # while an outage runs. self.games/pref_games were seeded in
+            # refresh_games(), so they stay valid (empty) rather than undefined.
+            debug.debug("refresh_data: NHL API still down, skipping game refresh this cycle")
+            return
 
         # Update games for today
         self.refresh_games()
@@ -915,7 +1034,7 @@ class Data:
         Returns:
             PlayerStats object containing player info and statistics
         """
-        attempts_remaining = 5
+        attempts_remaining = self._network_attempts()
         while attempts_remaining > 0:
             try:
                 player_stats = PlayerStats(player_id, season)

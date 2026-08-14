@@ -1,0 +1,10 @@
+{
+    "headline_line1": "WE'LL",
+    "headline_line2": "BE BACK",
+    "scroll_text": "NHL API IS CURRENTLY DOWN, WE WILL TRY AGAIN LATER",
+    "headline_color": [255, 165, 0],
+    "scroll_color": [255, 255, 255],
+    "show_outage_duration": true,
+    "scroll_speed": 0.04,
+    "display_seconds": 5
+}

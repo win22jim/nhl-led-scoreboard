@@ -296,6 +296,16 @@ class Matrix:
 
         self.use_canvas = False
 
+        # When True, render() stamps a small red marker in a corner on every
+        # frame to signal that the NHL API is unreachable. Set centrally (see
+        # MainRenderer / Data) rather than by individual boards, so the marker
+        # is present no matter which board is on screen.
+        self.api_down_indicator = False
+        self.api_down_indicator_corner = "top-right"
+        # 3px floor: the //16 scale gives 2px on a 64x32 panel, which reads as a
+        # stuck pixel rather than a warning. 3x3 on 64x32, 4x4 on 128x64.
+        self.api_down_indicator_size = max(3, min(self.width, self.height) // 16)
+
         if (self.use_canvas):
             self.canvas = matrix.CreateFrameCanvas()
 
@@ -398,11 +408,43 @@ class Matrix:
                     (0, 255, 0)
                 )
 
+        self._stamp_api_down_indicator()
+
         if (self.use_canvas):
             self.canvas.SetImage(self.image.convert('RGB'), 0, 0)
             self.canvas = self.matrix.SwapOnVSync(self.canvas)
         else:
             self.matrix.SetImage(self.image.convert('RGB'))
+
+    def _stamp_api_down_indicator(self):
+        """Draw the NHL-API-down marker onto the frame about to be pushed.
+
+        Done here, at the single point every frame passes through, so it shows
+        on top of whatever board is rendering without each board having to know
+        about it. Drawn onto the PIL image (not straight to the RGBMatrix like
+        the older network_issue_indicator) so it survives the SetImage below and
+        works identically under the emulator.
+
+        Idempotent: it paints the same pixels every frame, and boards clear the
+        image between frames, so it can't accumulate.
+        """
+        if not self.api_down_indicator:
+            return
+        try:
+            s = self.api_down_indicator_size
+            if self.api_down_indicator_corner == "top-left":
+                x0, y0 = 0, 0
+            elif self.api_down_indicator_corner == "bottom-left":
+                x0, y0 = 0, self.height - s
+            elif self.api_down_indicator_corner == "bottom-right":
+                x0, y0 = self.width - s, self.height - s
+            else:  # top-right (default)
+                x0, y0 = self.width - s, 0
+            self.drawer.draw_rectangle((x0, y0), (s, s), fill=(255, 0, 0))
+        except Exception:
+            # Never let the status marker break rendering — it is a hint, not
+            # a feature worth failing a frame over.
+            pass
 
     def clear(self):
         self.image.paste(0, (0, 0, self.width, self.height))

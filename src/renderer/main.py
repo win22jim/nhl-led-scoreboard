@@ -5,8 +5,7 @@ from time import sleep
 
 from PIL import Image
 
-from boards.boards import Boards
-from boards.clock import Clock
+from boards.boards import NHL_API_BOARDS, Boards
 from boards.stanley_cup_champions import StanleyCupChampions
 from data.scoreboard import Scoreboard
 from data.season_phase import SeasonPhase
@@ -47,6 +46,35 @@ class MainRenderer:
         self.boards.board_manager.sync_with_config(config_board_lists)
         debug.info("MainRenderer: Synced boards with config")
 
+    def _configured_boards(self):
+        """Every board id the user has put in any state list."""
+        cfg = self.data.config
+        configured = set()
+        for name in (
+            "boards_off_day", "boards_scheduled", "boards_intermission", "boards_post_game",
+            "boards_post_season_active", "boards_post_season_eliminated", "boards_off_season",
+        ):
+            configured.update(getattr(cfg, name, None) or [])
+        return configured
+
+    def sync_api_status_indicator(self):
+        """Keep the matrix's red corner marker in step with NHL API health.
+
+        Only lit when the outage actually affects this user: if none of their
+        configured boards need NHL data (a pure clock + weather setup, say),
+        an NHL outage changes nothing on screen and shouldn't nag them.
+        """
+        try:
+            api_down = bool(getattr(self.data, "nhl_api_down", False))
+            affected = api_down and bool(self._configured_boards() & NHL_API_BOARDS)
+            if affected != getattr(self.matrix, "api_down_indicator", False):
+                debug.info(
+                    "NHL API status indicator {}".format("ON (API unreachable)" if affected else "OFF")
+                )
+            self.matrix.api_down_indicator = affected
+        except Exception as e:
+            debug.warning(f"sync_api_status_indicator failed: {e}")
+
     def render(self):
 
         if self.data.config.testing_mode:
@@ -68,12 +96,18 @@ class MainRenderer:
             while True:
                 self._draw_event_animation("goal",id=9)
 
-        while self.data.network_issues:
-            Clock(self.data, self.matrix, self.sleepEvent, duration=60)
-            self.data.refresh_data()
+        # Note: this used to be `while self.data.network_issues: Clock(...)`,
+        # which parked the display on the clock for the entire duration of an
+        # outage and never entered the board rotation at all. The rotation now
+        # handles an unreachable NHL API itself (api_status board + red corner
+        # indicator, see Boards._substitute_if_nhl_api_down), so we fall
+        # straight through and let the normal loop run in degraded mode.
+        if self.data.network_issues:
+            debug.warning("Starting with network issues — entering rotation in degraded mode")
 
         while True:
             debug.info('Rendering...')
+            self.sync_api_status_indicator()
             #if self.status.is_offseason(self.data.date()):
                 # Offseason (Show offseason related stuff)
                 #debug.info("It's offseason")
@@ -136,6 +170,10 @@ class MainRenderer:
             if i >= 1:
                 debug.info("off day data refresh")
                 self.data.refresh_data()
+                # The off-day loop can run for a long time without returning to
+                # the main loop, so re-check API health here too — this is what
+                # lights/clears the corner indicator during an outage.
+                self.sync_api_status_indicator()
                 i = 0
             else:
                 i += 1

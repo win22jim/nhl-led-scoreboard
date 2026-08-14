@@ -41,7 +41,8 @@
                         "free_agency",
                         "team_news",
                         "holiday",
-                        "event_countdown"
+                        "event_countdown",
+                        "api_status"
                     ]
                 },
                 {

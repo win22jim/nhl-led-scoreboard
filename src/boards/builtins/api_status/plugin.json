@@ -1,0 +1,11 @@
+{
+  "name": "API Status",
+  "description": "Notice screen shown while the NHL API is unreachable",
+  "boards": [
+    {
+      "id": "api_status",
+      "class_name": "ApiStatusBoard",
+      "module": "board"
+    }
+  ]
+}

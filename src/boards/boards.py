@@ -13,6 +13,7 @@ import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as get_package_version
 from pathlib import Path
+from time import time
 
 from packaging import version
 
@@ -32,11 +33,46 @@ from .board_manager import BoardManager
 
 debug = logging.getLogger("scoreboard")
 
+# Board shown in place of NHL-data boards while the NHL API is unreachable.
+API_STATUS_BOARD = "api_status"
+
+# Minimum seconds between showings of the api_status notice. A rotation can
+# contain five or six NHL boards in a row; without this the user would watch
+# the same "we'll be back" screen five times per cycle instead of moving on to
+# the boards that still work.
+API_DOWN_NOTICE_INTERVAL = 60
+
+# Boards that cannot render anything meaningful without a working NHL API.
+# These are substituted/skipped during an outage; everything else (clock,
+# weather, wxalert, wxforecast, christmas, holiday, holiday_countdown,
+# event_countdown, season_countdown, screensaver, pbdisplay) renders normally.
+#
+# free_agency is deliberately NOT here: it scrapes spotrac.com, not an
+# NHL-hosted endpoint, so it still works during an NHL outage. draft_tracker,
+# awards and team_news are included because they hit api-web.nhle.com,
+# records.nhl.com and forge-dapi.d3.nhle.com respectively — all NHL-hosted and
+# all observed failing together.
+NHL_API_BOARDS = frozenset({
+    "scoreticker",
+    "seriesticker",
+    "standings",
+    "team_summary",
+    "stats_leaders",
+    "player_stats",
+    "ovi_tracker",
+    "stanley_cup_champions",
+    "draft_tracker",
+    "awards",
+    "team_news",
+})
+
 
 class Boards:
     def __init__(self):
         self._boards = {}
         self._board_instances = {}  # Deprecated: kept for backward compatibility
+        # Timestamp of the last api_status showing (see API_DOWN_NOTICE_INTERVAL)
+        self._api_down_notice_last_shown = 0.0
         self._app_version = self._get_app_version()
         self._register_legacy_boards()
         self._load_boards()
@@ -330,8 +366,51 @@ class Boards:
         Raises:
             ValueError: If board_id is not found in registry
         """
+        board_id = self._substitute_if_nhl_api_down(board_id, data)
+        if board_id is None:
+            # Dependent board skipped — the notice was shown recently, so just
+            # move on to the next board in the rotation.
+            return None
+
         # Delegate to BoardManager
         return self.board_manager.render_board(board_id, data, matrix, sleepEvent)
+
+    def _substitute_if_nhl_api_down(self, board_id: str, data):
+        """Decide what to actually render when the NHL API is unreachable.
+
+        Every rotation loop funnels through render_board(), so this one hook
+        covers off_day, scheduled, intermission, post_game and all the season
+        phase states.
+
+        Returns the board id to render, or None to skip this slot entirely.
+
+        Behaviour, for a board that needs live NHL data:
+          * first one after the notice went stale -> render `api_status`
+          * any further ones within API_DOWN_NOTICE_INTERVAL -> skipped, so the
+            rotation moves straight on to boards that still work (clock,
+            weather, holiday, ...) instead of showing the same notice five
+            times in a row.
+
+        Boards that don't need the NHL API are never touched.
+        """
+        if board_id not in NHL_API_BOARDS:
+            return board_id
+        if not getattr(data, "nhl_api_down", False):
+            return board_id
+        if not self.is_board_loaded(API_STATUS_BOARD):
+            # Notice board unavailable for some reason — skip the dead board
+            # rather than render a broken one.
+            debug.debug(f"NHL API down and '{API_STATUS_BOARD}' not loaded; skipping '{board_id}'")
+            return None
+
+        now = time()
+        if now - self._api_down_notice_last_shown < API_DOWN_NOTICE_INTERVAL:
+            debug.debug(f"NHL API down — skipping '{board_id}' (notice already shown recently)")
+            return None
+
+        self._api_down_notice_last_shown = now
+        debug.info(f"NHL API down — showing '{API_STATUS_BOARD}' in place of '{board_id}'")
+        return API_STATUS_BOARD
 
 
     def get_available_boards(self) -> dict:

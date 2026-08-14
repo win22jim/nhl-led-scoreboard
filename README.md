@@ -29,7 +29,20 @@ Switched series information retrieval from the NHL Records API (which returns pe
 **Dashboard board rotation allows duplicate board assignments** ([`1d1b2d1`](https://github.com/win22jim/nhl-led-scoreboard/commit/1d1b2d1))
 In the web dashboard board rotation UI, available boards were single-use — once dropped into any state they became non-draggable. Fixed so pool boards remain draggable and duplicate prevention is scoped per-state only (matching how `config.json` actually works).
 
+**NHL API outage caused a permanent crash loop** ([`86297c6`](https://github.com/win22jim/nhl-led-scoreboard/commit/86297c6))
+Every network retry loop in `data.py` was written against the old `requests`-based API layer, which signalled failure with `ValueError`. The client is now httpx-based and raises `NHLAPIError`, a direct subclass of `Exception` — so all six `except ValueError` handlers were dead code. The first failed request killed the process, and during the NHL API outage of 2026-08-13 the scoreboard restarted every ~45 seconds for hours. All six loops now catch a shared `NETWORK_ERRORS` tuple. `get_teams()` additionally retries with escalating capped backoff and raises an explicit, actionable error rather than returning `None` (which previously resurfaced as a confusing `AttributeError` in `get_teams_by_code()`), and `refresh_games()`/`refresh_playoff()` seed their state before the retry loop so exhausting the retries can't leave attributes undefined.
+
 ### New Features
+
+**Graceful NHL API outage handling + `api_status` board**
+The NHL API goes down for real — on 2026-08-13 every NHL-hosted endpoint (`api-web.nhle.com`, `api.nhle.com`, `records.nhl.com`) stopped answering for hours. Rather than dying, the scoreboard now degrades:
+- **It always boots.** If the team list can't be fetched at startup, the scoreboard falls back to the bundled `backup_teams_data.json` and starts anyway, instead of exiting and letting supervisord restart it forever.
+- **New `api_status` board** — NHL logo, a "WE'LL BE BACK" headline, and a scrolling `NHL API IS CURRENTLY DOWN, WE WILL TRY AGAIN LATER` line along the bottom, optionally followed by how long the outage has lasted. You do **not** add this board to any state list: it's substituted automatically in place of boards that need live NHL data, and never appears while the API is healthy.
+- **The rotation keeps moving.** The first NHL-dependent board in a pass shows the notice; further NHL boards in the same pass are skipped (default: at most one notice per 60s, `API_DOWN_NOTICE_INTERVAL`), so the display moves straight on to boards that still work — clock, weather, holiday, event countdown, and `free_agency` (which scrapes spotrac.com, not an NHL host).
+- **Red corner indicator.** While the API is unreachable a small red square is stamped in the top-right of *every* frame, drawn centrally in `Matrix.render()` so it appears regardless of which board is on screen. It only lights if the outage actually affects you — a clock-and-weather-only rotation never sees it.
+- **It self-heals.** Each data refresh probes the API once; the moment it answers, the real team table (and preferred-team ids) are reloaded, the notice stops and the indicator clears — no restart required.
+
+Configurable via the `api_status` board config: `headline_line1`, `headline_line2`, `scroll_text`, `headline_color`, `scroll_color`, `show_outage_duration`, `scroll_speed`, `display_seconds`.
 
 **Open-Meteo weather provider + weather worker hardening**
 - New `openmeteo` option for `weather_data_feed`. Free, no API key, no signup, global coverage. Recommended for everyone — OpenWeatherMap's One Call endpoint now requires a paid v3 subscription, and Environment Canada's free feed only covers Canadian lat/lons.
