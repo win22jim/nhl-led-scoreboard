@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from PIL import Image
 
-from data.data import Data
+from data.data import NETWORK_ERRORS, Data
 
 # from data.playoffs import Series
 from data.scoreboard import Scoreboard
@@ -301,7 +301,18 @@ class Seriesticker:
                     # we dont need to process future games so we break instead of looping through them
                     break
 
-                except ValueError as error_message:
+                # KeyError is checked first because it means something specific
+                # here (the game exists but its data is TBD) and NETWORK_ERRORS
+                # below also covers KeyError — Python takes the first match.
+                except KeyError as error_message:
+                    debug.error(
+                        "Failed to get the overview for game id {}. Data unavailable or is TBD".format(
+                            game["gameId"]
+                        )
+                    )
+                    debug.error(error_message)
+                    break
+                except NETWORK_ERRORS as error_message:
                     self.data.network_issues = True
                     debug.error(
                         "Failed to get the Games for the {} VS {} series: {} attempts remaining".format(
@@ -313,14 +324,6 @@ class Seriesticker:
                     debug.error(error_message)
                     attempts_remaining -= 1
                     self.sleepEvent.wait(1)
-                except KeyError as error_message:
-                    debug.error(
-                        "Failed to get the overview for game id {}. Data unavailable or is TBD".format(
-                            game["gameId"]
-                        )
-                    )
-                    debug.error(error_message)
-                    break
             # If one of the request for player info failed after 5 attempts, return an empty dictionary
             if attempts_remaining == 0:
                 return False

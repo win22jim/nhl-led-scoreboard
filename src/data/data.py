@@ -13,11 +13,30 @@ from data.playoffs import Series
 from data.season_phase import SeasonPhase, detect_phase
 from data.status import Status
 from nhl_api import info as nhl_info
+from nhl_api.client import NHLAPIError
 from nhl_api.data import get_game, get_game_overview, get_score_details
 from nhl_api.player import PlayerStats
 from utils import get_lat_lng
 
 NETWORK_RETRY_SLEEP_TIME = 0.5
+
+# Exceptions that mean "that fetch failed, try again" rather than "the code is
+# wrong". NHLAPIError is what the httpx client raises for timeouts, HTTP errors
+# and undecodable bodies; ValueError is the legacy json-parse failure these
+# retry loops were originally written against, back when the client was
+# requests-based. KeyError/TypeError cover a response that did arrive but is
+# missing — or misshaping — the fields we index into.
+#
+# IndexError is deliberately NOT in here: refresh_games() gives it a separate
+# meaning ("all preferred games are final") and must keep handling it on its own.
+NETWORK_ERRORS = (NHLAPIError, ValueError, KeyError, TypeError)
+
+# get_teams() is a hard startup dependency, so it retries across a window wide
+# enough to ride out a normal NHL API outage instead of crash-looping every
+# ~45 seconds. Each attempt already costs ~30s inside the client (3 retries at
+# a 10s timeout), so this works out to several minutes of patient retrying.
+TEAMS_FETCH_MAX_ATTEMPTS = 10
+TEAMS_FETCH_MAX_BACKOFF = 30
 
 debug = logging.getLogger("scoreboard")
 
@@ -355,19 +374,48 @@ class Data:
     # Daily NHL Data
 
     def get_teams(self):
-        attempts_remaining = 5
-        while attempts_remaining > 0:
+        """Fetch the league-wide team table.
+
+        Everything downstream (renderers, boards, preferred-team lookup) needs
+        this, so there is no useful degraded mode. Two things matter here:
+
+        1. Catch what the API layer actually raises. This loop used to catch
+           only ValueError, which NHLAPIError is not a subclass of — so an API
+           outage skipped the retry entirely and killed the process on the
+           first failure.
+        2. Never fall off the end returning None. A None here does not surface
+           as a network problem; it surfaces later as an AttributeError inside
+           get_teams_by_code(), which hides the real cause.
+
+        The loading screen stays on the matrix while we retry, so a transient
+        NHL outage now looks like a slow start instead of a restart loop.
+        """
+        last_error = None
+        for attempt in range(1, TEAMS_FETCH_MAX_ATTEMPTS + 1):
             try:
                 teams = nhl_info.team_info()
                 self.network_issues = False
+                if attempt > 1:
+                    debug.info("Got the list of Teams after {} attempts.".format(attempt))
                 return teams
 
-            except ValueError as error_message:
+            except NETWORK_ERRORS as error_message:
+                last_error = error_message
                 self.network_issues = True
-                debug.error("Failed to Get the list of Teams. {} attempt remaining.".format(attempts_remaining))
-                debug.error(error_message)
-                attempts_remaining -= 1
-                sleep(NETWORK_RETRY_SLEEP_TIME)
+                debug.error(
+                    "Failed to get the list of Teams (attempt {}/{}): {}".format(
+                        attempt, TEAMS_FETCH_MAX_ATTEMPTS, error_message
+                    )
+                )
+                if attempt < TEAMS_FETCH_MAX_ATTEMPTS:
+                    # Escalating, capped backoff. Hammering a downed API every
+                    # half-second only spams the log and the server.
+                    sleep(min(NETWORK_RETRY_SLEEP_TIME * (2 ** (attempt - 1)), TEAMS_FETCH_MAX_BACKOFF))
+
+        raise NHLAPIError(
+            "Could not load the NHL team list after {} attempts — the NHL API appears to be "
+            "unreachable. Last error: {}".format(TEAMS_FETCH_MAX_ATTEMPTS, last_error)
+        )
 
     def get_teams_by_code(self):
         teams_data = {}
@@ -390,6 +438,17 @@ class Data:
                 Add the option to start the earliest game in the preferred game list
                 but change to the top one as soon as it start.
         """
+
+        # Seed the empty state up front. These were previously assigned only on
+        # the success path, so exhausting every retry left the attributes
+        # undefined and the failure resurfaced as a confusing AttributeError in
+        # whichever renderer touched data.games first. An empty list is the
+        # state the rest of the code already handles (see the `if not data`
+        # branch below), so a total network failure now just means "no games".
+        if not hasattr(self, "games"):
+            self.games = []
+        if not hasattr(self, "pref_games"):
+            self.pref_games = []
 
         attempts_remaining = 5
         while attempts_remaining > 0:
@@ -431,7 +490,7 @@ class Data:
                 self.network_issues = False
                 break
 
-            except ValueError as error_message:
+            except NETWORK_ERRORS as error_message:
                 self.network_issues = True
                 debug.error("Failed to refresh the list of games. {} attempt remaining.".format(attempts_remaining))
                 debug.error(error_message)
@@ -569,7 +628,7 @@ class Data:
                 self.status = Status()
                 break
 
-            except ValueError as error_message:
+            except NETWORK_ERRORS as error_message:
                 self.network_issues = True
                 debug.error("Failed to refresh the Status data. {} attempt remaining.".format(attempts_remaining))
                 debug.error(error_message)
@@ -702,6 +761,13 @@ class Data:
         self.current_round = None
         self.current_round_name = None
         self.stanleycup_round = None
+        # Same reasoning as refresh_games(): seed these before the retry loop so
+        # that giving up leaves a well-defined "no playoff data" state rather
+        # than undefined attributes. seriesticker reads data.series directly.
+        if not hasattr(self, "series"):
+            self.series = []
+        if not hasattr(self, "playoffs"):
+            self.playoffs = None
         attempts_remaining = 5
         while attempts_remaining > 0:
             try:
@@ -769,7 +835,7 @@ class Data:
                         break
                 break
 
-            except ValueError as error_message:
+            except NETWORK_ERRORS as error_message:
                 self.network_issues = True
                 debug.error("Failed to refresh the list of Series. {} attempt remaining.".format(attempts_remaining))
                 debug.error(error_message)
@@ -855,7 +921,7 @@ class Data:
                 player_stats = PlayerStats(player_id, season)
                 self.network_issues = False
                 return player_stats
-            except ValueError as error_message:
+            except NETWORK_ERRORS as error_message:
                 self.network_issues = True
                 debug.error(f"Failed to get player stats. {attempts_remaining} attempts remaining.")
                 debug.error(error_message)
