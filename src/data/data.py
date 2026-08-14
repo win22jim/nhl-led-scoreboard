@@ -449,7 +449,52 @@ class Data:
             debug.warning(f"Could not re-resolve preferred teams after recovery: {e}")
         self.mark_nhl_api_up()
         debug.info("NHL API is back — reloaded live team data")
+
+        # Reloading teams isn't enough to make the NHL boards work again:
+        #
+        #  * standings/team_summary/stats_leaders render from background worker
+        #    caches, and StandingsWorker only refreshes hourly — so without a
+        #    nudge those boards would show "unavailable" for up to an hour after
+        #    recovery, with the api_status notice already switched off.
+        #  * season_phase and the playoff data were computed during the degraded
+        #    boot with no data, so the renderer could be using the wrong state
+        #    list until the next new-day refresh.
+        #
+        # The old crash loop got all of this for free by restarting. Now that
+        # the process survives an outage, recovery has to do it explicitly.
+        self.refresh_nhl_workers_now()
+        try:
+            self.refresh_playoff()
+            self.refresh_season_phase()
+        except Exception as e:
+            debug.warning(f"Post-recovery playoff/phase refresh failed: {e}")
+
         return True
+
+    # APScheduler ids of the workers that feed the NHL-data boards. Kept in sync
+    # with each worker's JOB_ID and SchedulerManager.KNOWN_JOB_IDS.
+    NHL_WORKER_JOB_IDS = ("standingsWorker", "statsLeadersWorker", "gamesWorker", "teamScheduleWorker")
+
+    def refresh_nhl_workers_now(self):
+        """Ask the NHL data workers to run on their next scheduler tick.
+
+        Rescheduling rather than calling fetch_and_cache() directly keeps the
+        fetches on the scheduler's own threads, so a slow API can't block the
+        render loop that called us.
+        """
+        scheduler = getattr(self, "scheduler", None)
+        if scheduler is None:
+            debug.debug("refresh_nhl_workers_now: no scheduler attached yet")
+            return
+        for job_id in self.NHL_WORKER_JOB_IDS:
+            try:
+                job = scheduler.get_job(job_id)
+                if job is None:
+                    continue
+                job.modify(next_run_time=datetime.now())
+                debug.info(f"Triggered immediate refresh of {job_id} after NHL API recovery")
+            except Exception as e:
+                debug.warning(f"Could not trigger {job_id} after recovery: {e}")
 
     def get_teams(self):
         """Fetch the league-wide team table.
