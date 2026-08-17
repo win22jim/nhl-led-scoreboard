@@ -1,0 +1,11 @@
+{
+  "name": "Draft Class",
+  "description": "Your team's picks from the most recent NHL Entry Draft",
+  "boards": [
+    {
+      "id": "draft_class",
+      "class_name": "DraftClassBoard",
+      "module": "board"
+    }
+  ]
+}

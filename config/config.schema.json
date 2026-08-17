@@ -42,7 +42,11 @@
                         "team_news",
                         "holiday",
                         "event_countdown",
-                        "api_status"
+                        "api_status",
+                        "draft_class",
+                        "season_opener",
+                        "season_recap",
+                        "team_leaders"
                     ]
                 },
                 {

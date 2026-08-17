@@ -1,0 +1,11 @@
+{
+  "name": "Season Recap",
+  "description": "How your team finished the most recent completed season",
+  "boards": [
+    {
+      "id": "season_recap",
+      "class_name": "SeasonRecapBoard",
+      "module": "board"
+    }
+  ]
+}

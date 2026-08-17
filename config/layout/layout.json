@@ -1,81 +1,141 @@
 {
   "_default": {
-    "position": [0, 0],
+    "position": [
+      0,
+      0
+    ],
     "align": "left-top"
   },
   "team_summary": {
     "info": {
-      "position": ["0%", 0]
+      "position": [
+        "0%",
+        0
+      ]
     },
     "logo": {
-      "position": ["65%", 0]
+      "position": [
+        "65%",
+        0
+      ]
     }
   },
   "scoreboard": {
-    "center_top":{
-      "position": ["50%", 0],
+    "center_top": {
+      "position": [
+        "50%",
+        0
+      ],
       "align": "center-top"
     },
     "relative_center_top": {
-      "position": [0, 2],
+      "position": [
+        0,
+        2
+      ],
       "relative": {
         "to": "center_top",
         "align": "center-bottom"
       }
     },
     "home_logo": {
-      "position": [["50%", 15], 0],
+      "position": [
+        [
+          "50%",
+          15
+        ],
+        0
+      ],
       "align": "left"
     },
     "away_logo": {
-      "position": [["50%", -15], 0],
+      "position": [
+        [
+          "50%",
+          -15
+        ],
+        0
+      ],
       "align": "right"
     },
     "vs": {
-      "position": ["50%", "45%"],
+      "position": [
+        "50%",
+        "45%"
+      ],
       "align": "center-top",
       "font": "medium"
     },
     "score": {
-      "position": ["50%", "45%"],
+      "position": [
+        "50%",
+        "45%"
+      ],
       "align": "center-top",
       "font": "medium"
     },
     "scheduled_date": {
-      "position": ["50%", 0],
+      "position": [
+        "50%",
+        0
+      ],
       "align": "center-top"
     },
     "scheduled_time": {
-      "position": ["50%", 6],
+      "position": [
+        "50%",
+        6
+      ],
       "align": "center-top"
     },
     "clock": {
-      "position": ["50%", 6],
+      "position": [
+        "50%",
+        6
+      ],
       "align": "center-top"
     },
     "period": {
-      "position": ["50%", 0],
+      "position": [
+        "50%",
+        0
+      ],
       "align": "center-top"
     },
     "period_final": {
-      "position": ["50%", 6],
+      "position": [
+        "50%",
+        6
+      ],
       "align": "center-top"
     },
     "SOG_label": {
-      "position": ["50%", 0],
+      "position": [
+        "50%",
+        0
+      ],
       "align": "center-top"
     },
     "SOG": {
-      "position": ["50%", 6],
+      "position": [
+        "50%",
+        6
+      ],
       "align": "center-top"
     },
     "pp_badge_home_time": {
-      "position": ["100%", "100%"],
+      "position": [
+        "100%",
+        "100%"
+      ],
       "align": "right-bottom",
       "font": "small"
     },
     "pp_badge_home": {
-      "position": [-2, 0],
+      "position": [
+        -2,
+        0
+      ],
       "relative": {
         "to": "pp_badge_home_time",
         "align": "left"
@@ -84,12 +144,18 @@
       "align": "right"
     },
     "pp_badge_away_time": {
-      "position": ["0%", "100%"],
+      "position": [
+        "0%",
+        "100%"
+      ],
       "align": "left-bottom",
       "font": "small"
     },
     "pp_badge_away": {
-      "position":[2, 0],
+      "position": [
+        2,
+        0
+      ],
       "relative": {
         "to": "pp_badge_away_time",
         "align": "right"
@@ -98,202 +164,309 @@
       "align": "left"
     },
     "irregular_status": {
-      "position": ["50%", 6],
+      "position": [
+        "50%",
+        6
+      ],
       "align": "center-top"
     }
-
   },
-  "goal":{
+  "goal": {
     "header": {
-      "position": [1,1],
-      "align":"left"
+      "position": [
+        1,
+        1
+      ],
+      "align": "left"
     },
     "hashtag_dots": {
-      "position":[1,2],
+      "position": [
+        1,
+        2
+      ],
       "relative": {
         "to": "header",
-        "align":"left-bottom"
+        "align": "left-bottom"
       }
     },
     "scorer_number": {
-      "position": [12,2],
+      "position": [
+        12,
+        2
+      ],
       "relative": {
         "to": "header",
-        "align":"left-bottom"
+        "align": "left-bottom"
       },
-      "font":"medium_2"
+      "font": "medium_2"
     },
     "badge": {
-      "position": [-12,11],
-      "relative":{
+      "position": [
+        -12,
+        11
+      ],
+      "relative": {
         "to": "scorer_number",
         "align": "left"
       }
     },
     "scorer_first_name": {
-      "position": [2,0],
-      "relative":{
+      "position": [
+        2,
+        0
+      ],
+      "relative": {
         "to": "badge",
         "align": "right-top"
       }
     },
     "scorer_last_name": {
-      "position": [0, 1],
-      "relative":{
+      "position": [
+        0,
+        1
+      ],
+      "relative": {
         "to": "scorer_first_name",
         "align": "left-bottom"
       }
     }
   },
-  "assists":{
+  "assists": {
     "header": {
-      "position": [1,1],
-      "align":"left"
+      "position": [
+        1,
+        1
+      ],
+      "align": "left"
     },
     "scorer_last_name": {
-      "position": [0,1],
-      "relative":{
+      "position": [
+        0,
+        1
+      ],
+      "relative": {
         "to": "header",
         "align": "left-bottom"
       }
     },
     "assists_header": {
-      "position": [0,2],
-      "relative":{
+      "position": [
+        0,
+        2
+      ],
+      "relative": {
         "to": "scorer_last_name",
         "align": "left-bottom"
       }
     },
     "assist1_last_name": {
-      "position": [0, 2],
-      "relative":{
+      "position": [
+        0,
+        2
+      ],
+      "relative": {
         "to": "assists_header",
         "align": "left-bottom"
       }
-    },"assist2_last_name": {
-      "position": [0, 1],
-      "relative":{
+    },
+    "assist2_last_name": {
+      "position": [
+        0,
+        1
+      ],
+      "relative": {
         "to": "assist1_last_name",
         "align": "left-bottom"
       }
     }
   },
-  "penalty":{
+  "penalty": {
     "header": {
-      "position": [1,1],
-      "align":"left"
+      "position": [
+        1,
+        1
+      ],
+      "align": "left"
     },
-    "team_name":{
-      "position": [1, 8]
+    "team_name": {
+      "position": [
+        1,
+        8
+      ]
     },
-    "hashtag_dots":{
-      "position": [2, 0],
+    "hashtag_dots": {
+      "position": [
+        2,
+        0
+      ],
       "align": "left",
       "relative": {
         "to": "team_name",
         "align": "right"
-      } 
+      }
     },
-    "jersey_number":{
-      "position": [9, 0],
+    "jersey_number": {
+      "position": [
+        9,
+        0
+      ],
       "align": "left",
       "relative": {
         "to": "team_name",
         "align": "right"
-      } 
+      }
     },
-
-    "last_name":{
-      "position": [0, 7],
+    "last_name": {
+      "position": [
+        0,
+        7
+      ],
       "relative": {
         "to": "team_name",
         "align": "bottom"
-      } 
+      }
     },
-    "minutes":{
-      "position": [0, 6],
+    "minutes": {
+      "position": [
+        0,
+        6
+      ],
       "font": "medium_2",
       "relative": {
         "to": "last_name",
         "align": "bottom"
-      } 
+      }
     },
-    "severity":{
-      "position": [2, 0],
+    "severity": {
+      "position": [
+        2,
+        0
+      ],
       "relative": {
         "to": "minutes",
         "align": "right"
-      } 
+      }
     }
   },
   "scoreticker": {
     "indicator_dots": {
-      "position": ["50%", ["100%", -1]],
+      "position": [
+        "50%",
+        [
+          "100%",
+          -1
+        ]
+      ],
       "align": "center"
     }
   },
   "clock": {
     "time": {
-      "position": ["50%", "60%"],
+      "position": [
+        "50%",
+        "60%"
+      ],
       "font": "large",
       "align": "center-center"
     },
     "date": {
-      "position": [0, -2],
+      "position": [
+        0,
+        -2
+      ],
       "align": "left-bottom",
       "relative": {
         "to": "time",
         "align": "left-top"
-      } 
+      }
     },
     "meridiem": {
-      "position": [2, 0],
+      "position": [
+        2,
+        0
+      ],
       "align": "left-top",
       "relative": {
         "to": "time",
         "align": "right-top"
-      } 
+      }
     }
   },
-  "seriesticker":{
-    "seperator":{
-      "position":[0,21]
+  "seriesticker": {
+    "seperator": {
+      "position": [
+        0,
+        21
+      ]
     },
     "indicator_dots": {
-      "position": ["50%", ["100%", -1]],
+      "position": [
+        "50%",
+        [
+          "100%",
+          -1
+        ]
+      ],
       "align": "center"
     },
-    "default":{
+    "default": {
       "font": "_default"
     },
-    "header":{
-      "position": ["50%",1],
+    "header": {
+      "position": [
+        "50%",
+        1
+      ],
       "font": "_default",
       "align": "center"
     },
-    "overview":{
-      "position":["50%",8],
-      "font":"_default",
+    "overview": {
+      "position": [
+        "50%",
+        8
+      ],
+      "font": "_default",
       "align": "center"
     },
     "top_seed_bg": {
-      "position":[0,14],
-      "size":[14,7]
+      "position": [
+        0,
+        14
+      ],
+      "size": [
+        14,
+        7
+      ]
     },
     "bottom_seed_bg": {
-      "position":[0,22],
-      "size":[14,7]
+      "position": [
+        0,
+        22
+      ],
+      "size": [
+        14,
+        7
+      ]
     },
     "top_seed": {
-      "position":[1,15],
+      "position": [
+        1,
+        15
+      ],
       "font": "_default"
     },
     "bottom_seed": {
-      "position":[1,23],
+      "position": [
+        1,
+        23
+      ],
       "font": "_default"
     },
-    "top_seed_score_1":{
-      "position":[1, 1],
+    "top_seed_score_1": {
+      "position": [
+        1,
+        1
+      ],
       "font": "_default",
       "align": "center-center",
       "relative": {
@@ -301,8 +474,11 @@
         "align": "center-center"
       }
     },
-    "top_seed_score_2":{
-      "position":[1, 1],
+    "top_seed_score_2": {
+      "position": [
+        1,
+        1
+      ],
       "font": "_default",
       "align": "center-center",
       "relative": {
@@ -310,8 +486,11 @@
         "align": "center-center"
       }
     },
-    "top_seed_score_3":{
-      "position":[1, 1],
+    "top_seed_score_3": {
+      "position": [
+        1,
+        1
+      ],
       "font": "_default",
       "align": "center-center",
       "relative": {
@@ -319,8 +498,11 @@
         "align": "center-center"
       }
     },
-    "top_seed_score_4":{
-      "position":[1, 1],
+    "top_seed_score_4": {
+      "position": [
+        1,
+        1
+      ],
       "font": "_default",
       "align": "center-center",
       "relative": {
@@ -328,8 +510,11 @@
         "align": "center-center"
       }
     },
-    "top_seed_score_5":{
-      "position":[1, 1],
+    "top_seed_score_5": {
+      "position": [
+        1,
+        1
+      ],
       "font": "_default",
       "align": "center-center",
       "relative": {
@@ -337,8 +522,11 @@
         "align": "center-center"
       }
     },
-    "top_seed_score_6":{
-      "position":[1, 1],
+    "top_seed_score_6": {
+      "position": [
+        1,
+        1
+      ],
       "font": "_default",
       "align": "center-center",
       "relative": {
@@ -346,8 +534,11 @@
         "align": "center-center"
       }
     },
-    "top_seed_score_7":{
-      "position":[1, 1],
+    "top_seed_score_7": {
+      "position": [
+        1,
+        1
+      ],
       "font": "_default",
       "align": "center-center",
       "relative": {
@@ -355,168 +546,273 @@
         "align": "center-center"
       }
     },
-    "top_seed_score_1_bg":{
-      "position":[1,0],
-      "size":[5,7],
-      "relative":{
+    "top_seed_score_1_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
+      "relative": {
         "to": "top_seed_bg",
         "align": "right"
       }
     },
-    "top_seed_score_2_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "top_seed_score_2_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"top_seed_score_1_bg",
-        "align":"right"
+        "to": "top_seed_score_1_bg",
+        "align": "right"
       }
     },
-    "top_seed_score_3_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "top_seed_score_3_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"top_seed_score_2_bg",
-        "align":"right"
+        "to": "top_seed_score_2_bg",
+        "align": "right"
       }
     },
-    "top_seed_score_4_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "top_seed_score_4_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"top_seed_score_3_bg",
-        "align":"right"
+        "to": "top_seed_score_3_bg",
+        "align": "right"
       }
     },
-    "top_seed_score_5_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "top_seed_score_5_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"top_seed_score_4_bg",
-        "align":"right"
+        "to": "top_seed_score_4_bg",
+        "align": "right"
       }
     },
-    "top_seed_score_6_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "top_seed_score_6_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"top_seed_score_5_bg",
-        "align":"right"
+        "to": "top_seed_score_5_bg",
+        "align": "right"
       }
     },
-    "top_seed_score_7_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "top_seed_score_7_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"top_seed_score_6_bg",
-        "align":"right"
+        "to": "top_seed_score_6_bg",
+        "align": "right"
       }
     },
-    "bottom_seed_score_1_bg":{
-      "position":[1,0],
-      "size":[5,7],
-      "relative":{
+    "bottom_seed_score_1_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
+      "relative": {
         "to": "bottom_seed_bg",
         "align": "right"
       }
     },
-    "bottom_seed_score_2_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "bottom_seed_score_2_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"bottom_seed_score_1_bg",
-        "align":"right"
+        "to": "bottom_seed_score_1_bg",
+        "align": "right"
       }
     },
-    "bottom_seed_score_3_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "bottom_seed_score_3_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"bottom_seed_score_2_bg",
-        "align":"right"
+        "to": "bottom_seed_score_2_bg",
+        "align": "right"
       }
     },
-    "bottom_seed_score_4_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "bottom_seed_score_4_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"bottom_seed_score_3_bg",
-        "align":"right"
+        "to": "bottom_seed_score_3_bg",
+        "align": "right"
       }
     },
-    "bottom_seed_score_5_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "bottom_seed_score_5_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"bottom_seed_score_4_bg",
-        "align":"right"
+        "to": "bottom_seed_score_4_bg",
+        "align": "right"
       }
     },
-    "bottom_seed_score_6_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "bottom_seed_score_6_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"bottom_seed_score_5_bg",
-        "align":"right"
+        "to": "bottom_seed_score_5_bg",
+        "align": "right"
       }
     },
-    "bottom_seed_score_7_bg":{
-      "position":[1,0],
-      "size":[5,7],
+    "bottom_seed_score_7_bg": {
+      "position": [
+        1,
+        0
+      ],
+      "size": [
+        5,
+        7
+      ],
       "relative": {
-        "to":"bottom_seed_score_6_bg",
-        "align":"right"
+        "to": "bottom_seed_score_6_bg",
+        "align": "right"
       }
     },
-    "bottom_seed_score_1":{
-      "position":[1, 1],
+    "bottom_seed_score_1": {
+      "position": [
+        1,
+        1
+      ],
       "align": "center-center",
       "relative": {
         "to": "bottom_seed_score_1_bg",
         "align": "center-center"
       }
     },
-    "bottom_seed_score_2":{
-      "position":[1, 1],
+    "bottom_seed_score_2": {
+      "position": [
+        1,
+        1
+      ],
       "align": "center-center",
       "relative": {
         "to": "bottom_seed_score_2_bg",
         "align": "center-center"
       }
     },
-    "bottom_seed_score_3":{
-      "position":[1, 1],
+    "bottom_seed_score_3": {
+      "position": [
+        1,
+        1
+      ],
       "align": "center-center",
       "relative": {
         "to": "bottom_seed_score_3_bg",
         "align": "center-center"
       }
     },
-    "bottom_seed_score_4":{
-      "position":[1, 1],
+    "bottom_seed_score_4": {
+      "position": [
+        1,
+        1
+      ],
       "align": "center-center",
       "relative": {
         "to": "bottom_seed_score_4_bg",
         "align": "center-center"
       }
     },
-    "bottom_seed_score_5":{
-      "position":[1, 1],
+    "bottom_seed_score_5": {
+      "position": [
+        1,
+        1
+      ],
       "align": "center-center",
       "relative": {
         "to": "bottom_seed_score_5_bg",
         "align": "center-center"
       }
     },
-    "bottom_seed_score_6":{
-      "position":[1, 1],
+    "bottom_seed_score_6": {
+      "position": [
+        1,
+        1
+      ],
       "align": "center-center",
       "relative": {
         "to": "bottom_seed_score_6_bg",
         "align": "center-center"
       }
     },
-    "bottom_seed_score_7":{
-      "position":[1, 1],
+    "bottom_seed_score_7": {
+      "position": [
+        1,
+        1
+      ],
       "align": "center-center",
       "relative": {
         "to": "bottom_seed_score_7_bg",
@@ -526,12 +822,18 @@
   },
   "wx_clock": {
     "time": {
-      "position": ["50%", "55%"],
+      "position": [
+        "50%",
+        "55%"
+      ],
       "font": "large",
       "align": "center-center"
     },
     "date": {
-      "position": [0, -2],
+      "position": [
+        0,
+        -2
+      ],
       "align": "left-bottom",
       "relative": {
         "to": "time",
@@ -539,7 +841,10 @@
       }
     },
     "meridiem": {
-      "position": [2, 0],
+      "position": [
+        2,
+        0
+      ],
       "align": "left-top",
       "relative": {
         "to": "time",
@@ -547,59 +852,89 @@
       }
     },
     "wx_display": {
-      "position": ["50%", "95%"],
+      "position": [
+        "50%",
+        "95%"
+      ],
       "align": "center-bottom"
     }
   },
-  "covid_19":{
-    "count":{
-      "position": [0, "50%"],
+  "covid_19": {
+    "count": {
+      "position": [
+        0,
+        "50%"
+      ],
       "font": "medium_2",
       "align": "left-top"
     },
-    "name":{
-      "position": [3, 0],
+    "name": {
+      "position": [
+        3,
+        0
+      ],
       "align": "left-top",
       "relative": {
         "to": "location",
         "align": "right"
       }
     },
-    "location":{
-      "position": [0, -3],
+    "location": {
+      "position": [
+        0,
+        -3
+      ],
       "align": "left-bottom",
       "relative": {
         "to": "count",
         "align": "left-top"
       }
     },
-    "lastupdate":{
-      "position": [0, "100%"],
+    "lastupdate": {
+      "position": [
+        0,
+        "100%"
+      ],
       "align": "left-bottom"
     },
-    "board_title":{
-      "position": [1, 1],
+    "board_title": {
+      "position": [
+        1,
+        1
+      ],
       "align": "left-top"
     }
   },
-  "wx_curr_temp":{
-    "condition":{
-      "position": ["68%", "2%"],
+  "wx_curr_temp": {
+    "condition": {
+      "position": [
+        "68%",
+        "2%"
+      ],
       "font": "wxicons_md",
       "align": "top-right"
     },
-    "summary":{
-      "position": ["50%", "81%"],
+    "summary": {
+      "position": [
+        "50%",
+        "81%"
+      ],
       "font": "wx_medium",
       "align": "center-bottom"
     },
-    "update":{
-      "position": ["50%", "100%"],
+    "update": {
+      "position": [
+        "50%",
+        "100%"
+      ],
       "font": "wx_medium",
       "align": "center-bottom"
     },
-    "temp":{
-      "position": [-2, 0],
+    "temp": {
+      "position": [
+        -2,
+        0
+      ],
       "font": "wx_large",
       "align": "right",
       "relative": {
@@ -607,13 +942,19 @@
         "align": "left"
       }
     },
-    "forecast_condition":{
-      "position": ["68%", "2%"],
+    "forecast_condition": {
+      "position": [
+        "68%",
+        "2%"
+      ],
       "font": "wxicons_md",
       "align": "top-right"
     },
-    "forecast_temp_hi":{
-      "position": [-3, 0],
+    "forecast_temp_hi": {
+      "position": [
+        -3,
+        0
+      ],
       "font": "wx_large",
       "align": "right",
       "relative": {
@@ -621,14 +962,19 @@
         "align": "left"
       }
     },
-    "forecast_hi":{
-      "position": [2, 3],
+    "forecast_hi": {
+      "position": [
+        2,
+        3
+      ],
       "font": "wx_medium",
       "align": "left"
     },
-
     "forecast_temp_lo": {
-      "position": [0, 2],
+      "position": [
+        0,
+        2
+      ],
       "font": "wx_large",
       "align": "right",
       "relative": {
@@ -636,8 +982,11 @@
         "align": "right-bottom"
       }
     },
-    "forecast_lo":{
-      "position": [0, 6],
+    "forecast_lo": {
+      "position": [
+        0,
+        6
+      ],
       "font": "wx_medium",
       "align": "left",
       "relative": {
@@ -646,7 +995,10 @@
       }
     },
     "temp_app": {
-      "position": [0, 2],
+      "position": [
+        0,
+        2
+      ],
       "font": "wx_large",
       "align": "right",
       "relative": {
@@ -655,7 +1007,10 @@
       }
     },
     "temp_app_hi": {
-      "position": [0, 2],
+      "position": [
+        0,
+        2
+      ],
       "font": "wx_large",
       "align": "right",
       "relative": {
@@ -664,7 +1019,10 @@
       }
     },
     "temp_app_lo": {
-      "position": [0, 2],
+      "position": [
+        0,
+        2
+      ],
       "font": "wx_large",
       "align": "right",
       "relative": {
@@ -673,19 +1031,28 @@
       }
     }
   },
-  "wx_curr_wind":{
-    "condition":{
-      "position": ["75%", "29%"],
+  "wx_curr_wind": {
+    "condition": {
+      "position": [
+        "75%",
+        "29%"
+      ],
       "font": "wxicons_lg",
       "align": "top-right"
     },
     "wind": {
-      "position": ["3%","6%"],
+      "position": [
+        "3%",
+        "6%"
+      ],
       "font": "wx_medium",
       "align": "top"
     },
     "gust": {
-      "position": [0,8],
+      "position": [
+        0,
+        8
+      ],
       "font": "wx_medium",
       "align": "left",
       "relative": {
@@ -694,7 +1061,10 @@
       }
     },
     "pressure": {
-      "position": [0,14],
+      "position": [
+        0,
+        14
+      ],
       "font": "wx_medium",
       "align": "left",
       "relative": {
@@ -703,7 +1073,10 @@
       }
     },
     "visibility": {
-      "position": [0,14],
+      "position": [
+        0,
+        14
+      ],
       "font": "wx_medium",
       "align": "left",
       "relative": {
@@ -712,39 +1085,60 @@
       }
     }
   },
-  "wx_curr_precip":{
-    "preciptype":{
-      "position": ["75%", "22%"],
+  "wx_curr_precip": {
+    "preciptype": {
+      "position": [
+        "75%",
+        "22%"
+      ],
       "font": "wxicons_lg",
       "align": "right"
     },
-    "preciptype_na":{
-      "position": ["65%", "30%"],
+    "preciptype_na": {
+      "position": [
+        "65%",
+        "30%"
+      ],
       "font": "wxicons_full",
       "align": "right"
     },
-    "precipchance":{
-      "position": ["5%", "2%"],
+    "precipchance": {
+      "position": [
+        "5%",
+        "2%"
+      ],
       "font": "wx_medium",
       "align": "left-top"
     },
-    "humidity":{
-      "position": ["5%", "85%"],
+    "humidity": {
+      "position": [
+        "5%",
+        "85%"
+      ],
       "font": "wx_medium",
       "align": "bottom-left"
     },
     "pressure": {
-      "position": ["5%","10%"],
+      "position": [
+        "5%",
+        "10%"
+      ],
       "font": "wx_medium",
       "align": "top"
     },
     "tendency": {
-      "position": ["90%", "10%"],
+      "position": [
+        "90%",
+        "10%"
+      ],
       "font": "wxicons_lg",
       "align": "right"
     },
     "dewpoint": {
-      "position": [0,"35%"],
+      "position": [
+        0,
+        "35%"
+      ],
       "font": "wx_medium",
       "align": "left",
       "relative": {
@@ -753,101 +1147,166 @@
       }
     }
   },
-  "wx_alert":{
+  "wx_alert": {
     "warning": {
-      "position": ["50%","42%"],
+      "position": [
+        "50%",
+        "42%"
+      ],
       "font": "wx_medium",
       "align": "center-center"
     },
     "warning_date": {
-      "position": ["50%","65%"],
+      "position": [
+        "50%",
+        "65%"
+      ],
       "font": "wx_medium",
       "align": "center-center"
     },
     "watch_us": {
-      "position": ["50%","50%"],
+      "position": [
+        "50%",
+        "50%"
+      ],
       "font": "wx_medium",
       "align": "center-center"
     },
     "watch_ca": {
-      "position": ["50%","50%"],
+      "position": [
+        "50%",
+        "50%"
+      ],
       "font": "wx_medium",
       "align": "center-center"
-    }, 
+    },
     "advisory_us": {
-      "position": ["50%","50%"],
+      "position": [
+        "50%",
+        "50%"
+      ],
       "font": "wx_medium",
       "align": "center-center"
-    },   
+    },
     "advisory_ca": {
-      "position": ["50%","50%"],
+      "position": [
+        "50%",
+        "50%"
+      ],
       "font": "wx_medium",
       "align": "center-center"
     },
     "title_top": {
-      "position": ["50%","5%"],
+      "position": [
+        "50%",
+        "5%"
+      ],
       "font": "wx_medium",
       "align": "center-top"
-      },
+    },
     "title_bottom": {
-      "position": ["50%","97%"],
+      "position": [
+        "50%",
+        "97%"
+      ],
       "font": "wx_medium",
       "align": "center-bottom"
-      }
+    }
   },
   "player_stats": {
     "name": {
-      "position": ["50%", 0],
+      "position": [
+        "50%",
+        0
+      ],
       "align": "center-top",
       "font": "small"
     },
     "team": {
-      "position": ["50%", 9],
+      "position": [
+        "50%",
+        9
+      ],
       "align": "center-top",
       "font": "small"
     },
     "stat_1": {
-      "position": [0, 18],
+      "position": [
+        0,
+        18
+      ],
       "align": "left-top",
       "font": "small"
     },
     "stat_2": {
-      "position": [32, 18],
+      "position": [
+        32,
+        18
+      ],
       "align": "left-top",
       "font": "small"
     },
     "stat_3": {
-      "position": [0, 25],
+      "position": [
+        0,
+        25
+      ],
       "align": "left-top",
       "font": "small"
     },
     "stat_4": {
-      "position": [32, 25],
+      "position": [
+        32,
+        25
+      ],
       "align": "left-top",
       "font": "small"
     },
     "stat_5": {
-      "position": [0, 32],
+      "position": [
+        0,
+        32
+      ],
       "align": "left-top",
       "font": "small"
     }
   },
   "ovi_tracker": {
     "logo": {
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "align": "left"
     },
     "title": {
-      "position": [62, 1],
+      "position": [
+        62,
+        1
+      ],
       "align": "right-top"
-     }, 
+    },
     "name": {
-      "position": [60, 10],
+      "position": [
+        60,
+        10
+      ],
       "align": "right-top"
     },
     "career_goals": {
-      "position": [60, 20],
+      "position": [
+        60,
+        20
+      ],
       "align": "right-top"
+    }
+  },
+  "season_opener": {
+    "logo": {
+      "position": [
+        "60%",
+        0
+      ]
     }
   }
 }

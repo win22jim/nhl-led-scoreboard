@@ -1,0 +1,11 @@
+{
+  "name": "Team Leaders",
+  "description": "Your team's statistical leaders from the last completed season",
+  "boards": [
+    {
+      "id": "team_leaders",
+      "class_name": "TeamLeadersBoard",
+      "module": "board"
+    }
+  ]
+}

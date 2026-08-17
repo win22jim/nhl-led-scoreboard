@@ -1,0 +1,12 @@
+{
+  "rotation_rate": 7,
+  "leaders_to_show": 3,
+  "categories": [
+    "points",
+    "goals",
+    "assists"
+  ],
+  "show_goalie": true,
+  "categories_per_visit": 2,
+  "update_freq_hours": 24
+}

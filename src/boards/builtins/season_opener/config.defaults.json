@@ -1,0 +1,6 @@
+{
+  "rotation_rate": 8,
+  "show_preseason": true,
+  "skip_after_opener": true,
+  "update_freq_hours": 12
+}

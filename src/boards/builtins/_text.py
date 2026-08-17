@@ -85,6 +85,74 @@ def text_width(font, text: str) -> int:
         return 0
 
 
+def wrap_lines(font, text: str, max_width: int, max_lines: int = None):
+    """Greedy word-wrap ``text`` to lines no wider than ``max_width`` pixels.
+
+    With ``max_lines=None`` (the default) every line is returned, so callers
+    can page through long text rather than truncate or fall back to a marquee.
+    Pass an int to cap it, in which case ``fits`` reports whether the text
+    actually needed more room.
+
+    Returns ``(lines, fits)``.
+
+    Static wrapped text beats a marquee wherever it fits: a 64px-wide matrix
+    holds ~14 characters per line, so a typical headline lands in 2-3 lines and
+    can simply be read, rather than crawling past one character at a time.
+    """
+    words = (text or "").split()
+    if not words:
+        return [], True
+
+    lines, current = [], ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if text_width(font, candidate) <= max_width or not current:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+
+    if max_lines is None:
+        return lines, True
+    return lines[:max_lines], len(lines) <= max_lines
+
+
+def paginate(lines, per_page: int):
+    """Split wrapped ``lines`` into screen-sized pages."""
+    per_page = max(1, per_page)
+    return [lines[i:i + per_page] for i in range(0, len(lines), per_page)] or [[]]
+
+
+def line_overflows(font, lines, max_width: int) -> bool:
+    """True if any single line is wider than the panel.
+
+    Wrapping can't help a single word longer than the display (rare, but e.g.
+    a hyphen-free compound). Callers fall back to a marquee for those.
+    """
+    return any(text_width(font, ln) > max_width for ln in lines)
+
+
+def read_seconds(text: str, min_seconds: float = 2.5, max_seconds: float = 8.0,
+                 wpm: float = 110.0) -> float:
+    """How long to hold static text on screen so it can actually be read.
+
+    Proportional to length rather than a fixed dwell — a five-word headline
+    shouldn't sit there as long as a fifteen-word one, and padding short items
+    to a fixed duration is exactly the dead air we're trying to avoid.
+
+    The 110 wpm default is deliberately well below prose reading speed: this is
+    a small pixel font on an LED panel, usually read from across a room and
+    often glanced at mid-stride.
+    """
+    words = len((text or "").split())
+    if not words:
+        return min_seconds
+    seconds = (words / max(1.0, wpm)) * 60.0
+    return max(min_seconds, min(max_seconds, seconds))
+
+
 def scroll_line(
     matrix,
     sleepEvent,

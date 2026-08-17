@@ -1,0 +1,11 @@
+{
+  "name": "Season Opener",
+  "description": "Countdown to your team's first game of the season",
+  "boards": [
+    {
+      "id": "season_opener",
+      "class_name": "SeasonOpenerBoard",
+      "module": "board"
+    }
+  ]
+}

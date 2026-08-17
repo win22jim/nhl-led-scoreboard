@@ -34,6 +34,29 @@ Every network retry loop in `data.py` was written against the old `requests`-bas
 
 ### New Features
 
+**Team News rewritten — readable headlines instead of a 45-second crawl**
+The board showed one story per visit as a scrolling headline followed by the API's `summary` field. That summary is a ~300-character wire paragraph — about 1100px in the 8px pixel font — which took **40-47 seconds** to crawl along the bottom of an otherwise-blank screen. It read as a stray flickering line at the bottom and as the board having hung. The stray "line" had a second cause too: the scroll cleared only its own region, so the previous item's truncated summary stayed frozen on the rows it didn't own.
+- **Headlines only.** Summaries are dropped; the headline carries the information.
+- **Word-wrapped and static.** Most headlines fit three lines and can simply be read. Long ones page through two or three lines at a time with progress dots, instead of crawling. A marquee is now the last resort, used only when a single unbreakable word is wider than the panel.
+- **Timed by content, not a fixed slot.** Each headline (and each page) is held proportionally to its own length — short ones are never padded out.
+- **Several headlines per visit** with a `2/5` counter. A typical visit is ~14s for three headlines, versus ~55s for one item before.
+- Full clear between items, so nothing is left frozen on rows the next item doesn't draw over.
+
+**Draft Tracker — correct data, and it stands down after the draft**
+Three real accuracy bugs, all fixed:
+- It labelled the round from `selectableRounds[-1]`, which is just the highest *selectable* round — always 7. Round-1 picks were displayed as **"R7"**. The round is per-pick and now comes from the pick itself.
+- It showed `picks[-5:]` — the *tail*. For a completed round that's picks #28-32. A finished draft now shows the top of round 1; only a live draft shows the most recent picks.
+- It fell back to prospect rankings whenever picks were empty, which post-draft meant presenting the already-drafted class as though they were still prospects. Rankings are now used **only** before the draft.
+- It also ignored the `state` and `broadcastStartTimeUTC` fields entirely, so it couldn't tell pre-draft from post-draft. It now uses both, and **skips itself once the draft is over** — `skip_days_after_draft` (default **7**, set `0` to show year-round).
+
+**Four new off-season boards**
+- **`season_opener`** — days until *your* team's first game, in the season-countdown style: team logo on the right behind a gradient, big day count on the left, and the matchup below. Counts down to preseason first, then the regular-season opener, and skips itself once the season is under way.
+- **`draft_class`** — your team's full haul from the most recent draft (round, overall pick, position and junior/college club), paged a few at a time. Stays interesting all summer, unlike the draft tracker.
+- **`season_recap`** — how the season that just ended finished: record, points, goal differential, division/conference placing, and whether they made the playoffs.
+- **`team_leaders`** — last season's points, goals and assists leaders plus the starting goalie's record, one category per screen.
+
+All four resolve the preferred team through a shared `_team.py` helper and render an empty state rather than raising if a source is unavailable.
+
 **Graceful NHL API outage handling + `api_status` board**
 The NHL API goes down for real — on 2026-08-13 every NHL-hosted endpoint (`api-web.nhle.com`, `api.nhle.com`, `records.nhl.com`) stopped answering for hours. Rather than dying, the scoreboard now degrades:
 - **It always boots.** If the team list can't be fetched at startup, the scoreboard falls back to the bundled `backup_teams_data.json` and starts anyway, instead of exiting and letting supervisord restart it forever.

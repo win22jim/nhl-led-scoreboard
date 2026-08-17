@@ -1,0 +1,7 @@
+{
+  "rotation_rate": 6,
+  "picks_per_page": 3,
+  "max_pages_per_visit": 2,
+  "show_club": true,
+  "update_freq_hours": 24
+}

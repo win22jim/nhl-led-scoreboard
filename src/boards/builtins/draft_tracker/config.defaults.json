@@ -1,6 +1,7 @@
 {
-  "rotation_rate": 6,
-  "picks_to_show": 5,
+  "rotation_rate": 8,
+  "picks_to_show": 4,
   "highlight_preferred": true,
-  "update_freq_minutes": 5
+  "update_freq_minutes": 5,
+  "skip_days_after_draft": 7
 }
