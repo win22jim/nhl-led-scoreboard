@@ -1091,12 +1091,150 @@
                 <label class="field-label">Picks to Show</label>
                 <input type="number" id="b-draft_tracker-picks_to_show" min="1" max="32" onchange="markDirty()">
               </div>
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Hide After Draft <span style="color:var(--text-dim)">(days, 0 = never)</span></label>
+                <input type="number" id="b-draft_tracker-skip_days_after_draft" min="0" max="365" onchange="markDirty()">
+              </div>
             </div>
             <div class="toggle-row" style="margin-top:10px;">
               <div><div class="toggle-label">Highlight Preferred Team Picks</div></div>
               <label class="toggle"><input type="checkbox" id="b-draft_tracker-highlight_preferred" onchange="markDirty()"><span class="toggle-slider"></span></label>
             </div>
-            <div class="field-hint">Uses the official NHL draft API (api-web.nhle.com). Updates live during the draft.</div>
+            <div class="field-hint">Uses the official NHL draft API (api-web.nhle.com). Shows prospect rankings before the draft, live picks during it, and the top of round 1 just after. Hides itself once the draft has been over for the number of days above (default 7).</div>
+          </div>
+        </div>
+
+        <!-- DRAFT CLASS -->
+        <div class="board-accordion" id="acc-draft_class">
+          <div class="accordion-header" onclick="toggleAccordion('acc-draft_class')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Draft Class</div>
+              <span class="board-tag">draft_class</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-draft_class-rotation_rate" min="2" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:150px;">
+                <label class="field-label">Picks Per Page</label>
+                <input type="number" id="b-draft_class-picks_per_page" min="1" max="6" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:170px;">
+                <label class="field-label">Pages Per Visit</label>
+                <input type="number" id="b-draft_class-max_pages_per_visit" min="1" max="10" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Show Junior / College Club</div><div class="toggle-desc">Adds the player's amateur team under each pick</div></div>
+              <label class="toggle"><input type="checkbox" id="b-draft_class-show_club" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-hint">Your team's full haul from the most recent NHL Entry Draft, across all seven rounds. Unlike Draft Tracker this stays useful all summer, as those prospects show up in camp and preseason.</div>
+          </div>
+        </div>
+
+        <!-- SEASON OPENER -->
+        <div class="board-accordion" id="acc-season_opener">
+          <div class="accordion-header" onclick="toggleAccordion('acc-season_opener')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Season Opener</div>
+              <span class="board-tag">season_opener</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-season_opener-rotation_rate" min="2" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:190px;">
+                <label class="field-label">Refresh (hours)</label>
+                <input type="number" id="b-season_opener-update_freq_hours" min="1" max="72" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Count Down To Preseason First</div><div class="toggle-desc">Off: always counts to the regular-season opener</div></div>
+              <label class="toggle"><input type="checkbox" id="b-season_opener-show_preseason" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Hide Once The Season Starts</div><div class="toggle-desc">Skips the board when there's nothing left to count down to</div></div>
+              <label class="toggle"><input type="checkbox" id="b-season_opener-skip_after_opener" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-hint">Days until YOUR team's first game, with the opponent, shown over the team logo. Adjust the logo's size and position in config/layout/logos.json and config/layout/layout.json under "season_opener".</div>
+          </div>
+        </div>
+
+        <!-- SEASON RECAP -->
+        <div class="board-accordion" id="acc-season_recap">
+          <div class="accordion-header" onclick="toggleAccordion('acc-season_recap')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Season Recap</div>
+              <span class="board-tag">season_recap</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-season_recap-rotation_rate" min="2" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:170px;">
+                <label class="field-label">Pages Per Visit</label>
+                <input type="number" id="b-season_recap-pages_per_visit" min="1" max="2" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:190px;">
+                <label class="field-label">Refresh (hours)</label>
+                <input type="number" id="b-season_recap-update_freq_hours" min="1" max="72" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-hint">How the last completed season finished: record and points on page 1, division/conference placing and playoff result on page 2.</div>
+          </div>
+        </div>
+
+        <!-- TEAM LEADERS -->
+        <div class="board-accordion" id="acc-team_leaders">
+          <div class="accordion-header" onclick="toggleAccordion('acc-team_leaders')">
+            <div class="accordion-header-left">
+              <div class="accordion-name">Team Leaders</div>
+              <span class="board-tag">team_leaders</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </div>
+          <div class="accordion-body">
+            <div class="field-row">
+              <div class="field" style="max-width:200px;">
+                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-team_leaders-rotation_rate" min="2" max="60" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:170px;">
+                <label class="field-label">Players Listed</label>
+                <input type="number" id="b-team_leaders-leaders_to_show" min="1" max="3" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:190px;">
+                <label class="field-label">Categories Per Visit</label>
+                <input type="number" id="b-team_leaders-categories_per_visit" min="1" max="4" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field" style="max-width:420px;">
+                <label class="field-label">Categories</label>
+                <div class="chip-row" style="margin-top:6px;">
+                  <label class="chip"><input type="checkbox" id="b-team_leaders-cat-points" onchange="markDirty()"> Points</label>
+                  <label class="chip"><input type="checkbox" id="b-team_leaders-cat-goals" onchange="markDirty()"> Goals</label>
+                  <label class="chip"><input type="checkbox" id="b-team_leaders-cat-assists" onchange="markDirty()"> Assists</label>
+                </div>
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Include Goalie Screen</div><div class="toggle-desc">Starter's record, GAA and save percentage</div></div>
+              <label class="toggle"><input type="checkbox" id="b-team_leaders-show_goalie" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-hint">Your team's scoring leaders from the last completed season, one category per screen.</div>
           </div>
         </div>
 
@@ -1290,12 +1428,12 @@
           </div>
           <div class="accordion-body">
             <div class="field-row">
-              <div class="field" style="max-width:200px;">
-                <label class="field-label">Rotation Rate <span style="color:var(--text-dim)">(seconds)</span></label>
-                <input type="number" id="b-team_news-rotation_rate" min="5" max="120" onchange="markDirty()">
+              <div class="field" style="max-width:190px;">
+                <label class="field-label">Headlines Per Visit</label>
+                <input type="number" id="b-team_news-headlines_per_visit" min="1" max="10" onchange="markDirty()">
               </div>
-              <div class="field" style="max-width:120px;">
-                <label class="field-label">Headlines</label>
+              <div class="field" style="max-width:150px;">
+                <label class="field-label">Headlines Cached</label>
                 <input type="number" id="b-team_news-max_items" min="1" max="20" onchange="markDirty()">
               </div>
               <div class="field" style="max-width:180px;">
@@ -1303,7 +1441,21 @@
                 <input type="number" id="b-team_news-update_freq" min="5" max="240" onchange="markDirty()">
               </div>
             </div>
-            <div class="field-hint">Source: NHL Forge content API (forge-dapi.d3.nhle.com). Follows the first team in your Preferences. RSS feeds were retired by NHL — this is the official replacement.</div>
+            <div class="field-row">
+              <div class="field" style="max-width:220px;">
+                <label class="field-label">Max Time Per Visit <span style="color:var(--text-dim)">(seconds)</span></label>
+                <input type="number" id="b-team_news-max_seconds" min="10" max="300" onchange="markDirty()">
+              </div>
+              <div class="field" style="max-width:220px;">
+                <label class="field-label">Scroll Speed <span style="color:var(--text-dim)">(sec/pixel)</span></label>
+                <input type="number" id="b-team_news-scroll_speed" min="0.01" max="0.2" step="0.01" onchange="markDirty()">
+              </div>
+            </div>
+            <div class="toggle-row" style="margin-top:10px;">
+              <div><div class="toggle-label">Show Headline Counter</div><div class="toggle-desc">The "2/5" indicator in the header</div></div>
+              <label class="toggle"><input type="checkbox" id="b-team_news-show_counter" onchange="markDirty()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="field-hint">Source: NHL Forge content API (forge-dapi.d3.nhle.com). Follows the first team in your Preferences. Headlines are word-wrapped and shown statically, paging when long — each is held only as long as its own length needs, so there is no dead air. Scroll speed applies only to the rare headline containing a word too wide to wrap.</div>
           </div>
         </div>
 
@@ -1985,8 +2137,37 @@ function populateForm(cfg) {
   // Draft tracker
   const dt = boards.draft_tracker || {};
   setVal('b-draft_tracker-rotation_rate', dt.rotation_rate ?? 6);
-  setVal('b-draft_tracker-picks_to_show', dt.picks_to_show ?? 5);
+  setVal('b-draft_tracker-picks_to_show', dt.picks_to_show ?? 4);
+  setVal('b-draft_tracker-skip_days_after_draft', dt.skip_days_after_draft ?? 7);
   setToggle('b-draft_tracker-highlight_preferred', dt.highlight_preferred ?? true);
+
+  // Draft class
+  const dc = boards.draft_class || {};
+  setVal('b-draft_class-rotation_rate', dc.rotation_rate ?? 6);
+  setVal('b-draft_class-picks_per_page', dc.picks_per_page ?? 3);
+  setVal('b-draft_class-max_pages_per_visit', dc.max_pages_per_visit ?? 2);
+  setToggle('b-draft_class-show_club', dc.show_club ?? true);
+
+  // Season opener
+  const so = boards.season_opener || {};
+  setVal('b-season_opener-rotation_rate', so.rotation_rate ?? 8);
+  setVal('b-season_opener-update_freq_hours', so.update_freq_hours ?? 12);
+  setToggle('b-season_opener-show_preseason', so.show_preseason ?? true);
+  setToggle('b-season_opener-skip_after_opener', so.skip_after_opener ?? true);
+
+  // Season recap
+  const sr2 = boards.season_recap || {};
+  setVal('b-season_recap-rotation_rate', sr2.rotation_rate ?? 8);
+  setVal('b-season_recap-pages_per_visit', sr2.pages_per_visit ?? 2);
+  setVal('b-season_recap-update_freq_hours', sr2.update_freq_hours ?? 12);
+
+  // Team leaders
+  const tl = boards.team_leaders || {};
+  setVal('b-team_leaders-rotation_rate', tl.rotation_rate ?? 7);
+  setVal('b-team_leaders-leaders_to_show', tl.leaders_to_show ?? 3);
+  setVal('b-team_leaders-categories_per_visit', tl.categories_per_visit ?? 2);
+  setToggle('b-team_leaders-show_goalie', tl.show_goalie ?? true);
+  setLeaderCategories(tl.categories || ['points', 'goals', 'assists']);
 
   // Awards
   const aw = boards.awards || {};
@@ -2002,9 +2183,12 @@ function populateForm(cfg) {
 
   // Team news
   const tn = boards.team_news || {};
-  setVal('b-team_news-rotation_rate', tn.rotation_rate ?? 12);
-  setVal('b-team_news-max_items', tn.max_items ?? 5);
+  setVal('b-team_news-headlines_per_visit', tn.headlines_per_visit ?? 3);
+  setVal('b-team_news-max_items', tn.max_items ?? 8);
   setVal('b-team_news-update_freq', tn.update_freq ?? 30);
+  setVal('b-team_news-max_seconds', tn.max_seconds ?? 60);
+  setVal('b-team_news-scroll_speed', tn.scroll_speed ?? 0.03);
+  setToggle('b-team_news-show_counter', tn.show_counter ?? true);
 
   // Holiday
   const hl = boards.holiday || {};
@@ -2177,9 +2361,34 @@ function buildConfig() {
         categories: getCategories()
       },
       draft_tracker: {
-        rotation_rate: getNum('b-draft_tracker-rotation_rate', 6),
-        picks_to_show: getNum('b-draft_tracker-picks_to_show', 5),
+        rotation_rate: getNum('b-draft_tracker-rotation_rate', 8),
+        picks_to_show: getNum('b-draft_tracker-picks_to_show', 4),
+        skip_days_after_draft: getNum('b-draft_tracker-skip_days_after_draft', 7),
         highlight_preferred: getToggle('b-draft_tracker-highlight_preferred')
+      },
+      draft_class: {
+        rotation_rate: getNum('b-draft_class-rotation_rate', 6),
+        picks_per_page: getNum('b-draft_class-picks_per_page', 3),
+        max_pages_per_visit: getNum('b-draft_class-max_pages_per_visit', 2),
+        show_club: getToggle('b-draft_class-show_club')
+      },
+      season_opener: {
+        rotation_rate: getNum('b-season_opener-rotation_rate', 8),
+        update_freq_hours: getNum('b-season_opener-update_freq_hours', 12),
+        show_preseason: getToggle('b-season_opener-show_preseason'),
+        skip_after_opener: getToggle('b-season_opener-skip_after_opener')
+      },
+      season_recap: {
+        rotation_rate: getNum('b-season_recap-rotation_rate', 8),
+        pages_per_visit: getNum('b-season_recap-pages_per_visit', 2),
+        update_freq_hours: getNum('b-season_recap-update_freq_hours', 12)
+      },
+      team_leaders: {
+        rotation_rate: getNum('b-team_leaders-rotation_rate', 7),
+        leaders_to_show: getNum('b-team_leaders-leaders_to_show', 3),
+        categories_per_visit: getNum('b-team_leaders-categories_per_visit', 2),
+        categories: getLeaderCategories(),
+        show_goalie: getToggle('b-team_leaders-show_goalie')
       },
       awards: {
         rotation_rate: getNum('b-awards-rotation_rate', 6),
@@ -2192,9 +2401,12 @@ function buildConfig() {
         preferred_teams_only: getToggle('b-free_agency-preferred_teams_only')
       },
       team_news: {
-        rotation_rate: getNum('b-team_news-rotation_rate', 12),
-        max_items: getNum('b-team_news-max_items', 5),
-        update_freq: getNum('b-team_news-update_freq', 30)
+        headlines_per_visit: getNum('b-team_news-headlines_per_visit', 3),
+        max_items: getNum('b-team_news-max_items', 8),
+        update_freq: getNum('b-team_news-update_freq', 30),
+        max_seconds: getNum('b-team_news-max_seconds', 60),
+        scroll_speed: parseFloat(getVal('b-team_news-scroll_speed')) || 0.03,
+        show_counter: getToggle('b-team_news-show_counter')
       },
       holiday: {
         country: getSelect('b-holiday-country'),
@@ -2616,6 +2828,21 @@ function setCategories(cats) {
 }
 function getCategories() {
   return [...$('statCategoryGrid').querySelectorAll('input:checked')].map(el => el.value);
+}
+
+// Team Leaders uses fixed checkboxes rather than a generated grid, because the
+// board only supports these three skater categories (goalies get their own
+// screen via the Include Goalie toggle).
+const LEADER_CATEGORIES = ['points', 'goals', 'assists'];
+
+function setLeaderCategories(cats) {
+  const wanted = Array.isArray(cats) ? cats : [];
+  LEADER_CATEGORIES.forEach(c => setToggle(`b-team_leaders-cat-${c}`, wanted.includes(c)));
+}
+function getLeaderCategories() {
+  const picked = LEADER_CATEGORIES.filter(c => getToggle(`b-team_leaders-cat-${c}`));
+  // Never save an empty list — the board would have nothing to show.
+  return picked.length ? picked : ['points'];
 }
 
 // ═══════════════════════════════════════════════════════════
