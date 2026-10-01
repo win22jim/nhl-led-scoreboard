@@ -32,6 +32,8 @@ import signal
 import shlex
 import time
 import argparse
+from urllib.parse import urlparse
+from werkzeug.exceptions import HTTPException
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort
 
 try:
@@ -142,6 +144,10 @@ except (ImportError, OSError) as e:
     cairosvg = None
 
 app = Flask(__name__, template_folder='templates')
+# No legitimate request here is anywhere near this big (the largest is a logo
+# upload); it stops a runaway or hostile body from filling memory.
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 AUTH_FILE = os.path.join(INSTALL_DIR, 'config', 'dashboard_auth.json')
 auth_store = init_auth(app, AUTH_FILE)
 
@@ -773,16 +779,21 @@ def upload_alt_logo():
         img_bytes = file.read()
     elif 'url' in request.form and request.form.get('url'):
         url = request.form.get('url')
+        # urlopen also speaks file:// and ftp://; only plain web addresses are wanted.
+        if urlparse(url).scheme not in ('http', 'https'):
+            return jsonify({"status": "error", "message": "Only http:// and https:// image addresses are supported."}), 400
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=15) as response:
                 content_type = response.info().get_content_type()
                 if content_type == 'text/html':
                     return jsonify({
                         "status": "error", 
                         "message": "The URL provided appears to be a webpage, not an image. Please right-click the image and select 'Copy Image Address' (or 'Copy Image Link')."
                     }), 400
-                img_bytes = response.read()
+                img_bytes = response.read(MAX_IMAGE_BYTES + 1)
+                if len(img_bytes) > MAX_IMAGE_BYTES:
+                    return jsonify({"status": "error", "message": "That image is too large (10 MB limit)."}), 400
         except Exception as e:
             return jsonify({"status": "error", "message": f"Failed to download image: {str(e)}"}), 400
     else:
@@ -1081,6 +1092,8 @@ def save_scoreboard_config():
         except config_safety.ConfigError as e:
             return jsonify({"status": "error", "message": e.message, "path": e.path}), 422
         return jsonify({"status": "success"})
+    except HTTPException:
+        raise  # e.g. 413 body too large: report it as such, not as a server error
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

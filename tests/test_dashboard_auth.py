@@ -336,3 +336,46 @@ def test_frame_endpoint_before_and_after_the_scoreboard_publishes(le, authed, tm
     assert float(r.headers['X-Frame-Age']) < 5
     assert r.headers['Cache-Control'] == 'no-store'
     assert r.data.startswith(b'\x89PNG')
+
+
+# --- upload limits and URL schemes ---------------------------------------------------
+
+@pytest.mark.parametrize('url', ['file:///etc/passwd', 'ftp://example.com/logo.png',
+                                 'gopher://x', 'data:image/png;base64,AAAA', '//example.com/x.png', 'WPG'])
+def test_upload_alt_only_fetches_web_addresses(authed, url):
+    r = authed.post('/api/upload_alt', data={'team': 'WPG', 'url': url})
+    assert r.status_code == 400 and 'http' in r.get_json()['message']
+
+
+def test_upload_alt_caps_the_download_size(le, authed):
+    import http.server
+    import threading
+
+    class Big(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/png')
+            self.end_headers()
+            try:
+                for _ in range(12):
+                    self.wfile.write(b'\0' * (1024 * 1024))
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, *a):
+            pass
+
+    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Big)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        r = authed.post('/api/upload_alt', data={
+            'team': 'WPG', 'url': f'http://127.0.0.1:{server.server_address[1]}/big.png'})
+    finally:
+        server.shutdown()
+    assert r.status_code == 400 and 'too large' in r.get_json()['message']
+
+
+def test_oversized_request_bodies_are_refused(authed):
+    r = authed.post('/api/scoreboard/config', data=b'{"x": "' + b'a' * (17 * 1024 * 1024) + b'"}',
+                    content_type='application/json')
+    assert r.status_code == 413
