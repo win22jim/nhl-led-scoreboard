@@ -16,7 +16,8 @@ class ThreadManager:
         self.threads = {
             "motionsensor": None,
             "mqtt": None,
-            "pushbutton": None
+            "pushbutton": None,
+            "control": None
         }
 
     def update_threads(self):
@@ -54,6 +55,20 @@ class ThreadManager:
                     sb_logger.error("MQTT is enabled in config, but 'paho-mqtt' is not installed.")
                 except Exception as e:
                     sb_logger.error(f"Failed to start MQTT thread: {e}")
+
+        # Web dashboard control channel (brightness, screensaver, show-a-board).
+        # Always on: it only lists an empty temp directory twice a second.
+        if self.threads["control"] is None or not self.threads["control"].is_alive():
+            try:
+                from sbio.localcontrol import LocalControls
+                controls = LocalControls(self.data, self.matrix, self.sleep_event, self.screensaver)
+                control_thread = threading.Thread(target=controls.run, args=())
+                control_thread.daemon = True
+                control_thread.start()
+                self.threads["control"] = control_thread
+                sb_logger.info("Dashboard control thread started.")
+            except Exception as e:
+                sb_logger.error(f"Failed to start dashboard control thread: {e}")
 
         # Pushbutton Thread
         if self.data.config.pushbutton_enabled and is_hardware():

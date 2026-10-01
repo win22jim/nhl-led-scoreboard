@@ -6,7 +6,6 @@ logo_editor is imported against a throwaway install directory (--dir), so
 nothing in the real config/ folder is read or written.
 """
 
-import importlib
 import os
 import shlex
 import stat
@@ -21,31 +20,12 @@ PASSWORD = "correct horse"
 
 
 @pytest.fixture
-def le(tmp_path, monkeypatch):
-    """A freshly imported logo_editor bound to an empty install dir."""
-    monkeypatch.syspath_prepend(SRC)
-    monkeypatch.setattr(sys, 'argv', ['logo_editor.py', '--dir', str(tmp_path)])
-    for name in ('logo_editor', 'src.logo_editor', 'dashboard_auth', 'src.dashboard_auth'):
-        sys.modules.pop(name, None)
-    module = importlib.import_module('logo_editor')
-    module.app.config['TESTING'] = True
-    return module
-
-
-@pytest.fixture
 def client(le):
     return le.app.test_client()
 
 
 def claim(client, password=PASSWORD):
     return client.post('/setup', data={'password': password, 'confirm': password})
-
-
-@pytest.fixture
-def authed(le):
-    c = le.app.test_client()
-    assert claim(c).status_code == 302
-    return c
 
 
 # --- first run ---------------------------------------------------------------

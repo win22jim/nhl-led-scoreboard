@@ -604,6 +604,20 @@
                           filter: blur(8px); opacity: 0.7; mix-blend-mode: screen; pointer-events: none; }
   .live-stage.stale canvas { opacity: 0.35; }
 
+  /* Quick controls */
+  .live-now { color: var(--text-dim); font-size: 12px; }
+  .live-now b { color: var(--text); font-weight: 600; }
+  .ctl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; }
+  .ctl .field-label { display: flex; justify-content: space-between; align-items: baseline; }
+  .ctl-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ctl-row select { flex: 1 1 140px; min-width: 0; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--primary-hi); height: 28px; }
+  .ctl input[type=range]:disabled, .ctl .btn:disabled, .ctl select:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.is-active { border-color: var(--primary-hi); color: var(--text); }
+  .ctl-msg { margin-top: 14px; font-size: 12px; min-height: 18px; color: var(--text-muted); }
+  .ctl-msg.ok { color: var(--success); }
+  .ctl-msg.bad { color: #fca5a5; }
+
   /* Account actions + password dialog */
   .header-actions { display: flex; align-items: center; gap: 8px; }
   .header-actions form { margin: 0; }
@@ -696,6 +710,7 @@
               <div class="card-desc" style="margin-bottom:0;">What is on the scoreboard right now. Refreshes about once a second.</div>
             </div>
             <div class="live-meta">
+              <span class="live-now" id="liveNow" hidden>Showing <b id="liveBoard"></b></span>
               <span class="live-badge" id="liveBadge">Connecting…</span>
               <label class="live-opt"><input type="checkbox" id="liveLed" checked onchange="setLiveLed(this.checked)"> LED look</label>
             </div>
@@ -704,6 +719,38 @@
             <canvas id="liveGlow" aria-hidden="true"></canvas>
             <canvas id="liveCanvas" role="img" aria-label="Live view of the scoreboard display"></canvas>
           </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Quick Controls</div>
+              <div class="card-desc" style="margin-bottom:0;">Applied to the running scoreboard straight away, without editing the config.</div>
+            </div>
+          </div>
+          <div class="ctl-grid">
+            <div class="ctl">
+              <label class="field-label" for="ctlBrightness"><span>Brightness</span><span id="ctlBrightnessVal">—</span></label>
+              <input type="range" id="ctlBrightness" min="1" max="100" step="1" value="50" disabled>
+              <div class="field-hint" id="ctlBrightnessHint"></div>
+            </div>
+            <div class="ctl">
+              <label class="field-label"><span>Screensaver</span></label>
+              <div class="ctl-row">
+                <button class="btn btn-outline" id="ctlSaverOn" type="button" disabled onclick="sendControl({action:'screensaver', value:'on'})">🌙 Start</button>
+                <button class="btn btn-outline" id="ctlSaverOff" type="button" disabled onclick="sendControl({action:'screensaver', value:'off'})">☀️ Wake</button>
+              </div>
+              <div class="field-hint" id="ctlSaverHint"></div>
+            </div>
+            <div class="ctl">
+              <label class="field-label" for="ctlBoard"><span>Show a board</span></label>
+              <div class="ctl-row">
+                <select id="ctlBoard" disabled></select>
+                <button class="btn btn-primary" id="ctlShow" type="button" disabled onclick="showBoardNow()">Show</button>
+              </div>
+            </div>
+          </div>
+          <div class="ctl-msg" id="ctlMessage" role="status"></div>
         </div>
 
         <div class="status-detail">
@@ -1984,6 +2031,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // still works against an older backend.
   await loadRegistryMetadata();
   renderStateColumns();
+  populateBoardPicker();
   loadConfig();
   startStatusPolling();
   startLogPolling();
@@ -3156,8 +3204,110 @@ async function pollLive() {
 function startLivePolling() {
   $('liveLed').checked = live.led;
   pollLive();
-  setInterval(pollLive, 1000);
-  document.addEventListener('visibilitychange', pollLive);
+  refreshNow();
+  setInterval(() => { pollLive(); refreshNow(); }, 1000);
+  document.addEventListener('visibilitychange', () => { pollLive(); refreshNow(); });
+  const slider = $('ctlBrightness');
+  slider.addEventListener('input', () => { ctl.dragging = true; $('ctlBrightnessVal').textContent = slider.value + '%'; });
+  slider.addEventListener('change', () => {
+    ctl.dragging = false;
+    ctl.holdUntil = Date.now() + 3000;  // don't snap back to the old value while the command is in flight
+    sendControl({action: 'brightness', value: parseInt(slider.value, 10)});
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// QUICK CONTROLS
+// State comes from the scoreboard itself (/api/scoreboard/now); commands go to
+// /api/scoreboard/command, which answers with what the scoreboard actually did.
+// ═══════════════════════════════════════════════════════════
+
+const ctl = { state: null, dragging: false, busy: false, holdUntil: 0 };
+
+function populateBoardPicker() {
+  const sel = $('ctlBoard');
+  sel.innerHTML = '';
+  // System boards (screensaver, weather alerts, push-button) are triggered by
+  // their own events; showing them by hand can lock the matrix.
+  AVAILABLE_BOARDS.filter(b => !b.system)
+    .slice().sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id))
+    .forEach(b => {
+      const o = document.createElement('option');
+      o.value = b.id;
+      o.textContent = b.name || b.id;
+      sel.appendChild(o);
+    });
+}
+
+function setCtlMessage(text, kind) {
+  const el = $('ctlMessage');
+  el.textContent = text || '';
+  el.className = 'ctl-msg ' + (kind || '');
+}
+
+async function refreshNow() {
+  if (ctl.busy || document.hidden || !$('tab-status').classList.contains('active')) return;
+  ctl.busy = true;
+  try {
+    const r = await fetch('/api/scoreboard/now', { cache: 'no-store' });
+    const d = await r.json();
+    ctl.state = d.available ? d : null;
+  } catch {
+    ctl.state = null;
+  } finally {
+    ctl.busy = false;
+  }
+  renderControls();
+}
+
+function renderControls() {
+  const s = ctl.state;
+  const up = !!s;
+
+  $('liveNow').hidden = !(up && s.board);
+  if (up && s.board) $('liveBoard').textContent = s.board;
+
+  const slider = $('ctlBrightness');
+  const byDimmer = up && s.dimmer_enabled;
+  slider.disabled = !up || byDimmer;
+  if (up && !ctl.dragging && Date.now() > ctl.holdUntil && s.brightness != null) {
+    slider.value = s.brightness;
+    $('ctlBrightnessVal').textContent = s.brightness + '%';
+  }
+  $('ctlBrightnessHint').textContent = !up ? 'Waiting for the scoreboard…'
+    : byDimmer ? 'The automatic dimmer is on, so brightness follows its schedule (change it under Advanced I/O).' : '';
+
+  const saverOk = up && s.screensaver_available;
+  $('ctlSaverOn').disabled = !saverOk;
+  $('ctlSaverOff').disabled = !saverOk;
+  $('ctlSaverOn').classList.toggle('is-active', saverOk && s.screensaver_active);
+  $('ctlSaverOff').classList.toggle('is-active', saverOk && !s.screensaver_active);
+  $('ctlSaverHint').textContent = up && !s.screensaver_available ? 'Not enabled in the config (Advanced I/O).' : '';
+
+  $('ctlBoard').disabled = !up;
+  $('ctlShow').disabled = !up;
+}
+
+async function sendControl(cmd) {
+  setCtlMessage('Sending…');
+  try {
+    const r = await fetch('/api/scoreboard/command', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cmd)
+    });
+    const d = await r.json().catch(() => ({}));
+    setCtlMessage(d.message || (r.ok ? 'Done.' : 'That did not work.'), r.ok && d.ok ? 'ok' : 'bad');
+  } catch (e) {
+    setCtlMessage('Could not reach the dashboard: ' + e.message, 'bad');
+  }
+  ctl.busy = false;
+  refreshNow();
+}
+
+function showBoardNow() {
+  const board = $('ctlBoard').value;
+  if (board) sendControl({action: 'showboard', board});
 }
 
 // ═══════════════════════════════════════════════════════════

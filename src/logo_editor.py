@@ -30,6 +30,7 @@ import datetime
 import subprocess
 import signal
 import shlex
+import time
 import argparse
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort
 
@@ -37,6 +38,11 @@ try:
     from src import frame_mirror
 except ImportError:
     import frame_mirror
+
+try:
+    from src import control_channel
+except ImportError:
+    import control_channel
 
 try:
     from src.dashboard_auth import init_auth, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
@@ -128,6 +134,8 @@ except (ImportError, OSError) as e:
 app = Flask(__name__, template_folder='templates')
 AUTH_FILE = os.path.join(INSTALL_DIR, 'config', 'dashboard_auth.json')
 auth_store = init_auth(app, AUTH_FILE)
+
+COMMAND_TIMEOUT = 3.0  # seconds to wait for the scoreboard to act on a command
 
 emulator_process = None
 current_layout = {"w": 64, "h": 32} 
@@ -1225,17 +1233,72 @@ def scoreboard_available_boards():
     discovered via plugin.json in src/boards/builtins and src/boards/plugins.
     """
     try:
-        boards = list(_LEGACY_BOARDS)
-        boards.extend(_scan_plugin_boards('builtins'))
-        boards.extend(_scan_plugin_boards('plugins'))
-        # De-duplicate by id, preferring later (plugin/builtin metadata) over legacy stub.
-        seen = {}
-        for b in boards:
-            seen[b['id']] = b
-        merged = sorted(seen.values(), key=lambda x: x['id'])
-        return jsonify({'boards': merged})
+        return jsonify({'boards': _all_boards()})
     except Exception as e:
         return jsonify({'boards': [], 'error': str(e)}), 500
+
+
+def _all_boards():
+    boards = list(_LEGACY_BOARDS)
+    boards.extend(_scan_plugin_boards('builtins'))
+    boards.extend(_scan_plugin_boards('plugins'))
+    # De-duplicate by id, preferring later (plugin/builtin metadata) over legacy stub.
+    seen = {}
+    for b in boards:
+        seen[b['id']] = b
+    return sorted(seen.values(), key=lambda x: x['id'])
+
+
+@app.route('/api/scoreboard/now', methods=['GET'])
+def scoreboard_now():
+    """What the running scoreboard is doing: current board, brightness, dimmer
+    and screensaver state. Also tells the scoreboard someone is watching, so it
+    keeps this (and the live display frames) fresh."""
+    try:
+        frame_mirror.request_frames()
+    except OSError:
+        pass
+    state = control_channel.read_state()
+    if state is None or state['age'] > 15:
+        return jsonify({'available': False})
+    state.pop('results', None)
+    state['available'] = True
+    return jsonify(state)
+
+
+@app.route('/api/scoreboard/command', methods=['POST'])
+def scoreboard_command():
+    """Run a control command on the scoreboard and wait for its outcome.
+
+    Body: {"action": "brightness", "value": 1-100}
+          {"action": "dimmer", "sunrise": 1-100, "sunset": 1-100}
+          {"action": "screensaver", "value": "on" | "off"}
+          {"action": "showboard", "board": "<board id>"}
+    Replies {"ok": bool, "message": str}: 200 done, 409 refused, 504 no answer.
+    """
+    try:
+        cmd = control_channel.validate_command(request.get_json(silent=True))
+    except control_channel.CommandError as e:
+        return jsonify({"ok": False, "message": str(e)}), 400
+    if cmd['action'] == 'showboard' and cmd['board'] not in {b['id'] for b in _all_boards()}:
+        return jsonify({"ok": False, "message": f"Unknown board '{cmd['board']}'."}), 400
+
+    try:
+        frame_mirror.request_frames()
+        cmd_id = control_channel.send(cmd)
+    except OSError as e:
+        return jsonify({"ok": False, "message": f"Could not reach the scoreboard: {e}"}), 500
+
+    deadline = time.monotonic() + COMMAND_TIMEOUT
+    while time.monotonic() < deadline:
+        state = control_channel.read_state()
+        result = (state or {}).get('results', {}).get(cmd_id)
+        if result:
+            return jsonify(result), (200 if result.get('ok') else 409)
+        time.sleep(0.1)
+    control_channel.withdraw(cmd_id)
+    return jsonify({"ok": False,
+                    "message": "The scoreboard didn't respond. Is it running?"}), 504
 
 
 # Canonical list of states the renderer knows about. Display metadata only;

@@ -30,6 +30,16 @@ def request_frames(want_path=None):
         os.utime(want_path)
 
 
+def viewer_present(want_path=None, ttl=None):
+    """True while a dashboard page has asked for frames recently."""
+    want_path = want_path or WANT_PATH
+    ttl = WANT_TTL if ttl is None else ttl
+    try:
+        return time.time() - os.stat(want_path).st_mtime < ttl
+    except OSError:
+        return False
+
+
 def frame_age(frame_path=None):
     """Dashboard side: seconds since the renderer last published, else None."""
     frame_path = frame_path or FRAME_PATH
@@ -72,10 +82,7 @@ class FrameMirror:
             self._next_check = now + 30.0
 
     def _watched(self):
-        try:
-            return time.time() - os.stat(self.want_path).st_mtime < self.ttl
-        except OSError:
-            return False
+        return viewer_present(self.want_path, self.ttl)
 
     def _write(self, image):
         rgb = image.convert('RGB')
