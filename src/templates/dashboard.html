@@ -608,7 +608,7 @@
   .live-stage { --pad: 12px; position: relative; max-width: 960px; margin: 0 auto; padding: var(--pad);
                 background: #000; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .live-stage canvas { display: block; width: 100%; height: auto; }
-  .live-stage #liveGlow { position: absolute; top: var(--pad); left: var(--pad); width: calc(100% - 2 * var(--pad));
+  .live-stage .glow { position: absolute; top: var(--pad); left: var(--pad); width: calc(100% - 2 * var(--pad));
                           filter: blur(8px); opacity: 0.7; mix-blend-mode: screen; pointer-events: none; }
   .live-stage.stale canvas { opacity: 0.35; }
 
@@ -653,6 +653,16 @@
                  background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; }
   .history-row small { color: var(--text-dim); display: block; font-size: 11px; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 10px; }
+  .seg-btn { padding: 7px 14px; background: transparent; color: var(--text-muted); border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+  .seg-btn.active { background: var(--primary-glow); color: var(--primary-hi); }
+  .picker-row { display: flex; gap: 6px; align-items: stretch; }
+  .picker-row .picker-item { flex: 1; min-width: 0; }
+  .picker-preview { flex: 0 0 auto; padding: 0 12px; cursor: pointer; color: var(--text-muted); background: var(--bg-input);
+                    border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; }
+  .picker-preview:hover { color: var(--primary-hi); border-color: var(--primary-hi); }
+  .pool-chip { cursor: pointer; }
   .chip-moves { display: inline-flex; margin-left: auto; }
   .chip-move { cursor: pointer; color: var(--text-dim); font-size: 10px; padding: 2px 6px; line-height: 1; }
   .chip-move:hover { color: var(--primary-hi); }
@@ -806,7 +816,7 @@
             </div>
           </div>
           <div class="live-stage" id="liveStage">
-            <canvas id="liveGlow" aria-hidden="true"></canvas>
+            <canvas id="liveGlow" class="glow" aria-hidden="true"></canvas>
             <canvas id="liveCanvas" role="img" aria-label="Live view of the scoreboard display"></canvas>
           </div>
         </div>
@@ -1036,7 +1046,7 @@
         <div class="section-sub">Drag boards into each game state, or tap “+ Add board”. Use ▲ ▼ to reorder.</div>
 
         <div class="available-pool">
-          <div class="pool-title">Available Boards — drag into any state, or tap “+ Add board” in a state</div>
+          <div class="pool-title">Available Boards — click one to preview it, drag it into a state, or tap “+ Add board” in a state</div>
           <div class="pool-chips" id="poolChips"></div>
         </div>
 
@@ -2071,6 +2081,25 @@
   </form>
 </dialog>
 
+<!-- BOARD PREVIEW -->
+<dialog id="previewDialog" class="modal wide">
+  <div class="card-title" id="previewTitle" style="margin-bottom:12px;">Preview</div>
+  <div class="seg" role="group" aria-label="Where to preview">
+    <button type="button" class="seg-btn active" id="pvModeBrowser" onclick="setPreviewMode('browser')">In browser only</button>
+    <button type="button" class="seg-btn" id="pvModePanel" onclick="setPreviewMode('panel')">On the panel</button>
+  </div>
+  <div class="modal-sub" id="previewHint"></div>
+  <div class="live-stage" id="previewStage">
+    <canvas id="previewGlow" class="glow" aria-hidden="true"></canvas>
+    <canvas id="previewCanvas" role="img" aria-label="Board preview"></canvas>
+  </div>
+  <div class="ctl-msg" id="previewMsg" role="status"></div>
+  <div class="modal-actions">
+    <button class="btn btn-outline" type="button" onclick="startPreview()">↻ Replay</button>
+    <button class="btn btn-primary" type="button" onclick="$('previewDialog').close()">Close</button>
+  </div>
+</dialog>
+
 <!-- ADD A BOARD TO A STATE (tap alternative to drag and drop) -->
 <dialog id="boardPicker" class="modal">
   <div class="card-title" id="boardPickerTitle" style="margin-bottom:12px;">Add a board</div>
@@ -2263,6 +2292,8 @@ function openBoardPicker(stateId) {
     list.textContent = 'Every board is already in this list.';
   }
   options.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'picker-row';
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'picker-item';
@@ -2276,7 +2307,16 @@ function openBoardPicker(stateId) {
       _performDrop({board: b.id, fromPool: true}, stateId, null, false);
       $('boardPicker').close();
     });
-    list.appendChild(btn);
+    const eye = document.createElement('button');
+    eye.type = 'button';
+    eye.className = 'picker-preview';
+    eye.textContent = '👁';
+    eye.title = 'Preview ' + b.id;
+    eye.setAttribute('aria-label', 'Preview ' + b.id);
+    eye.addEventListener('click', () => openPreview(b.id));
+    row.appendChild(btn);
+    row.appendChild(eye);
+    list.appendChild(row);
   });
   $('boardPicker').showModal();
 }
@@ -3092,7 +3132,7 @@ function makeChip(board, state) {
   });
   const moves = document.createElement('span');
   moves.className = 'chip-moves';
-  [['▲', 'Move up', -1], ['▼', 'Move down', 1]].forEach(([glyph, title, dir]) => {
+  [['👁', 'Preview this board', 0], ['▲', 'Move up', -1], ['▼', 'Move down', 1]].forEach(([glyph, title, dir]) => {
     const b = document.createElement('span');
     b.className = 'chip-move';
     b.textContent = glyph;
@@ -3101,6 +3141,7 @@ function makeChip(board, state) {
     b.setAttribute('aria-label', title);
     b.addEventListener('click', e => {
       e.stopPropagation();
+      if (dir === 0) { openPreview(board); return; }
       const list = chip.parentElement;
       if (!list) return;
       if (dir < 0 && chip.previousElementSibling) list.insertBefore(chip, chip.previousElementSibling);
@@ -3243,6 +3284,7 @@ function updatePoolChips() {
     });
     // Rich hover popover (replaces native title tooltip — faster, prettier,
     // shows the display name + id + description in one panel).
+    chip.addEventListener('click', () => { hideChipPopover(); openPreview(id); });
     chip.addEventListener('mouseenter', e => showChipPopover(e.currentTarget, meta));
     chip.addEventListener('mouseleave', hideChipPopover);
     pool.appendChild(chip);
@@ -3519,11 +3561,13 @@ function setLiveLed(on) {
 }
 
 function drawLive() {
-  const img = live.img;
-  if (!img) return;
+  if (live.img) paintLedFrame(live.img, $('liveCanvas'), $('liveGlow'));
+}
+
+// Draws a frame image onto a canvas as round LED pixels (plus a blurred glow copy).
+function paintLedFrame(img, cv, glow) {
   const w = img.naturalWidth, h = img.naturalHeight;
   const cell = Math.max(4, Math.min(16, Math.floor(960 / w)));  // canvas px per LED
-  const cv = $('liveCanvas'), glow = $('liveGlow');
   cv.width = glow.width = w * cell;
   cv.height = glow.height = h * cell;
   const ctx = cv.getContext('2d');
@@ -3676,8 +3720,7 @@ function renderControls() {
   $('ctlShow').disabled = !up;
 }
 
-async function sendControl(cmd) {
-  setCtlMessage('Sending…');
+async function postCommand(cmd) {
   try {
     const r = await fetch('/api/scoreboard/command', {
       method: 'POST',
@@ -3685,10 +3728,16 @@ async function sendControl(cmd) {
       body: JSON.stringify(cmd)
     });
     const d = await r.json().catch(() => ({}));
-    setCtlMessage(d.message || (r.ok ? 'Done.' : 'That did not work.'), r.ok && d.ok ? 'ok' : 'bad');
+    return {ok: r.ok && !!d.ok, message: d.message || (r.ok ? 'Done.' : 'That did not work.')};
   } catch (e) {
-    setCtlMessage('Could not reach the dashboard: ' + e.message, 'bad');
+    return {ok: false, message: 'Could not reach the dashboard: ' + e.message};
   }
+}
+
+async function sendControl(cmd) {
+  setCtlMessage('Sending…');
+  const res = await postCommand(cmd);
+  setCtlMessage(res.message, res.ok ? 'ok' : 'bad');
   ctl.busy = false;
   refreshNow();
 }
@@ -3697,6 +3746,117 @@ function showBoardNow() {
   const board = $('ctlBoard').value;
   if (board) sendControl({action: 'showboard', board});
 }
+
+// ═══════════════════════════════════════════════════════════
+// BOARD PREVIEW
+// "In browser only" has the scoreboard draw the board on a hidden copy of the
+// panel and stream those frames here; the real panel is not touched. "On the
+// panel" uses show-a-board and mirrors the real panel's frames.
+// ═══════════════════════════════════════════════════════════
+
+const pv = { board: null, mode: 'browser', timer: null, busy: false, token: 0 };
+
+const PREVIEW_HINTS = {
+  browser: 'Drawn separately with live data, so nothing changes on the panel. It can take a moment to load, and stops after 45 seconds.',
+  panel: 'Shows this board on the real panel on its next turn, then the normal rotation carries on.'
+};
+
+function setPreviewMsg(text, kind) {
+  const el = $('previewMsg');
+  el.textContent = text || '';
+  el.className = 'ctl-msg ' + (kind || '');
+}
+
+function openPreview(boardId) {
+  const meta = AVAILABLE_BOARDS.find(b => b.id === boardId) || {id: boardId};
+  pv.board = boardId;
+  $('previewTitle').textContent = 'Preview: ' + ((meta.name && meta.name !== meta.id) ? meta.name : meta.id);
+  $('previewDialog').showModal();
+  setPreviewMode(pv.mode, true);
+}
+
+async function setPreviewMode(mode, force) {
+  if (!force && mode === pv.mode) return;
+  const leaving = pv.mode;
+  stopPreviewPolling();
+  if (!force && leaving === 'browser') await postCommand({action: 'preview_stop'});
+  pv.mode = mode;
+  $('pvModeBrowser').classList.toggle('active', mode === 'browser');
+  $('pvModePanel').classList.toggle('active', mode === 'panel');
+  $('previewHint').textContent = PREVIEW_HINTS[mode];
+  await startPreview();
+}
+
+async function startPreview() {
+  stopPreviewPolling();
+  const token = ++pv.token;
+  const cv = $('previewCanvas');
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  $('previewGlow').getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  $('previewStage').classList.remove('stale');
+  setPreviewMsg('Starting…');
+  const res = await postCommand(pv.mode === 'browser'
+    ? {action: 'preview', board: pv.board}
+    : {action: 'showboard', board: pv.board});
+  if (token !== pv.token) return;  // the user switched mode or closed it meanwhile
+  setPreviewMsg(res.message, res.ok ? 'ok' : 'bad');
+  if (res.ok) {
+    pv.timer = setInterval(pollPreview, 500);
+    pollPreview();
+  }
+}
+
+function stopPreviewPolling() {
+  if (pv.timer) clearInterval(pv.timer);
+  pv.timer = null;
+}
+
+async function pollPreview() {
+  if (pv.busy || !$('previewDialog').open) return;
+  pv.busy = true;
+  const token = pv.token;
+  try {
+    const frameUrl = pv.mode === 'browser' ? '/api/scoreboard/preview-frame' : '/api/scoreboard/frame';
+    const [fr, nr] = await Promise.all([
+      fetch(frameUrl, {cache: 'no-store'}),
+      fetch('/api/scoreboard/now', {cache: 'no-store'}).then(r => r.json()).catch(() => ({}))
+    ]);
+    if (token !== pv.token) return;
+    if (fr.ok) {
+      const url = URL.createObjectURL(await fr.blob());
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        paintLedFrame(img, $('previewCanvas'), $('previewGlow'));
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+    if (pv.mode === 'browser') {
+      const p = nr.preview || {};
+      if (p.error) { setPreviewMsg('This board could not be drawn: ' + p.error, 'bad'); stopPreviewPolling(); }
+      else if (p.board === pv.board && p.running) setPreviewMsg(fr.ok ? 'Previewing (nothing is shown on the panel).' : 'Loading the board…');
+      else if (p.board === pv.board) { setPreviewMsg('Preview finished. Press Replay to watch again.'); stopPreviewPolling(); }
+    } else {
+      setPreviewMsg(nr.board === pv.board ? 'On the panel now.' : 'Waiting for the panel to switch to this board…',
+                    nr.board === pv.board ? 'ok' : '');
+    }
+  } catch {
+    // transient; the next tick retries
+  } finally {
+    pv.busy = false;
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  // Closing the dialog (button, Escape, anything) ends a browser-only preview.
+  $('previewDialog').addEventListener('close', () => {
+    pv.token++;
+    stopPreviewPolling();
+    if (pv.mode === 'browser') postCommand({action: 'preview_stop'});
+  });
+});
 
 // ═══════════════════════════════════════════════════════════
 // PASSWORD

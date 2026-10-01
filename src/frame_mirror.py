@@ -17,6 +17,9 @@ import tempfile
 import time
 
 FRAME_PATH = '/tmp/nhl-scoreboard-frame.png'
+# Frames of a board being previewed in the browser. Kept apart from FRAME_PATH
+# so a preview can never replace the picture of what is on the real panel.
+PREVIEW_FRAME_PATH = '/tmp/nhl-scoreboard-preview.png'
 WANT_PATH = '/tmp/nhl-scoreboard-frame.want'
 
 WANT_TTL = 10.0         # seconds a request keeps the renderer publishing

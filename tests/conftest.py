@@ -20,7 +20,7 @@ PASSWORD = "correct horse"
 # re-imported per test so patched paths and state never leak between tests.
 FRESH_MODULES = ('logo_editor', 'src.logo_editor', 'dashboard_auth', 'src.dashboard_auth',
                  'frame_mirror', 'src.frame_mirror', 'control_channel', 'src.control_channel',
-                 'sbio.localcontrol')
+                 'sbio.localcontrol', 'sbio.boardpreview', 'renderer.matrix')
 
 
 @pytest.fixture

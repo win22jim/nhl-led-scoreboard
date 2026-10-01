@@ -82,7 +82,7 @@ NJD, NYI, NYR, PHI, PIT, BOS, BUF, MTL, OTT, TOR, CAR, FLA, TBL, WSH, CHI, DET, 
 
 ### Automated tests (pytest)
 
-`test_dashboard_auth.py` (login, CSRF, first-run setup, input hardening), `test_frame_mirror.py` (live display feed), `test_controls.py` (quick controls), `test_config_safety.py` (validated saves, diff, history/restore) and `test_pwa.py` (manifest and icons) are ordinary pytest tests that need no hardware or network:
+`test_dashboard_auth.py` (login, CSRF, first-run setup, input hardening), `test_frame_mirror.py` (live display feed), `test_controls.py` (quick controls), `test_board_preview.py` (board preview), `test_config_safety.py` (validated saves, diff, history/restore) and `test_pwa.py` (manifest and icons) are ordinary pytest tests that need no hardware or network:
 
 ```bash
 pip install flask pillow pytest

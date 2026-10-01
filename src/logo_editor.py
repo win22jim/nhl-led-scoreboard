@@ -1219,26 +1219,20 @@ def scoreboard_control():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/api/scoreboard/frame', methods=['GET'])
-def scoreboard_frame():
-    """The picture currently on the LED panel, as a PNG.
-
-    Asking for it also wakes the renderer's publisher (frame_mirror), which
-    stays idle when nobody is watching. Poll every second or so.
-    X-Frame-Age is how many seconds old the picture is; a large value means the
-    scoreboard isn't running.
-    """
+def _frame_response(frame_path):
+    """PNG of a published frame, or 503 if there is none yet. Asking also wakes
+    the scoreboard's publishers, which stay idle when nobody is watching."""
     try:
         frame_mirror.request_frames()
     except OSError:
         pass
-    age = frame_mirror.frame_age()
+    age = frame_mirror.frame_age(frame_path)
     if age is None:
         resp = jsonify({"available": False})
         resp.status_code = 503
     else:
         try:
-            resp = send_file(frame_mirror.FRAME_PATH, mimetype='image/png', max_age=0)
+            resp = send_file(frame_path, mimetype='image/png', max_age=0)
         except OSError:
             resp = jsonify({"available": False})
             resp.status_code = 503
@@ -1246,6 +1240,23 @@ def scoreboard_frame():
             resp.headers['X-Frame-Age'] = f"{age:.1f}"
     resp.headers['Cache-Control'] = 'no-store'
     return resp
+
+
+@app.route('/api/scoreboard/frame', methods=['GET'])
+def scoreboard_frame():
+    """The picture currently on the LED panel, as a PNG.
+
+    Poll every second or so. X-Frame-Age is how many seconds old the picture is;
+    a large value means the scoreboard isn't running.
+    """
+    return _frame_response(frame_mirror.FRAME_PATH)
+
+
+@app.route('/api/scoreboard/preview-frame', methods=['GET'])
+def scoreboard_preview_frame():
+    """The latest frame of the board being previewed in the browser (see the
+    'preview' command). Separate from the live panel's frame."""
+    return _frame_response(frame_mirror.PREVIEW_FRAME_PATH)
 
 
 @app.route('/api/scoreboard/logs', methods=['GET'])
@@ -1366,14 +1377,16 @@ def scoreboard_command():
     Body: {"action": "brightness", "value": 1-100}
           {"action": "dimmer", "sunrise": 1-100, "sunset": 1-100}
           {"action": "screensaver", "value": "on" | "off"}
-          {"action": "showboard", "board": "<board id>"}
+          {"action": "showboard", "board": "<board id>"}   (shows it on the panel)
+          {"action": "preview", "board": "<board id>"}     (renders it in the browser only)
+          {"action": "preview_stop"}
     Replies {"ok": bool, "message": str}: 200 done, 409 refused, 504 no answer.
     """
     try:
         cmd = control_channel.validate_command(request.get_json(silent=True))
     except control_channel.CommandError as e:
         return jsonify({"ok": False, "message": str(e)}), 400
-    if cmd['action'] == 'showboard' and cmd['board'] not in {b['id'] for b in _all_boards()}:
+    if cmd['action'] in ('showboard', 'preview') and cmd['board'] not in {b['id'] for b in _all_boards()}:
         return jsonify({"ok": False, "message": f"Unknown board '{cmd['board']}'."}), 400
 
     try:

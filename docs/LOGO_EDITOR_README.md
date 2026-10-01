@@ -100,6 +100,15 @@ Under the live display on the Status tab:
 
 These act on the running scoreboard immediately, with no config edit and no MQTT broker (the dashboard talks to the scoreboard through a small spool directory in `/tmp`). Each button reports what actually happened, or why it was refused. A command that can't be delivered within a few seconds is cancelled, so it never fires later when the scoreboard comes back.
 
+## Previewing a board
+
+Click the 👁 on any board in **Board Rotation** (on a board in a state, in the **+ Add board** list, or on an "Available Boards" chip) to see it before you commit to it. Choose where:
+
+- **In browser only**: the scoreboard draws the board on a hidden copy of the panel and streams it to the page. **Nothing changes on the real panel**, and the live rotation carries on. It uses live data, so it can take a moment to load; it stops after 45 seconds, or when you close the window. Press **Replay** to run it again.
+- **On the panel**: shows the board on the real display on its next turn (the same as Quick Controls → Show a board), mirrored in the window. The normal rotation then continues.
+
+If a board can't be drawn, the window says why instead of hanging.
+
 ## Saving settings safely
 
 The scoreboard refuses to start if `config.json` doesn't match `config/config.schema.json`, so the dashboard never writes a config that doesn't validate.

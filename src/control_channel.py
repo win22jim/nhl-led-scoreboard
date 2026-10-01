@@ -59,11 +59,13 @@ def validate_command(cmd):
         if cmd.get('value') not in ('on', 'off'):
             raise CommandError("screensaver value must be 'on' or 'off'")
         return {'action': action, 'value': cmd['value']}
-    if action == 'showboard':
+    if action in ('showboard', 'preview'):
         board = cmd.get('board')
         if not isinstance(board, str) or not BOARD_ID_RE.fullmatch(board):
             raise CommandError("board must be a board id such as 'clock'")
         return {'action': action, 'board': board}
+    if action == 'preview_stop':
+        return {'action': action}
     raise CommandError("unknown action")
 
 

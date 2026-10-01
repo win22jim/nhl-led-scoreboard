@@ -3,6 +3,7 @@ import time
 
 import control_channel
 import frame_mirror
+from sbio.boardpreview import BoardPreview
 
 debug = logging.getLogger("scoreboard")
 
@@ -19,11 +20,12 @@ class LocalControls(object):
     the state file so the dashboard can show "done" or the reason it was refused.
     """
 
-    def __init__(self, data, matrix, sleep_event, screensaver):
+    def __init__(self, data, matrix, sleep_event, screensaver, preview=None):
         self.data = data
         self.matrix = matrix
         self.sleep_event = sleep_event
         self.screensaver = screensaver
+        self.preview = preview or BoardPreview(data, matrix)
         self.results = {}
         self._seen = set()
         self._last_published = None
@@ -72,6 +74,13 @@ class LocalControls(object):
         debug.info(f"Control: showing board {board} on next loop")
         return True, f"Showing {board} next."
 
+    def _do_preview(self, cmd):
+        return self.preview.start(cmd['board'])
+
+    def _do_preview_stop(self, cmd):
+        self.preview.stop()
+        return True, "Preview stopped."
+
     # --- loop -------------------------------------------------------------------
 
     def state(self):
@@ -88,6 +97,7 @@ class LocalControls(object):
                        if cfg.dimmer_enabled else None),
             'screensaver_available': self.screensaver is not None,
             'screensaver_active': bool(self.data.screensaver),
+            'preview': self.preview.status(),
             'results': dict(self.results),
         }
 

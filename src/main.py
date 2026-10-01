@@ -142,6 +142,8 @@ def run():
 
     # Create the MainRenderer and register it with the config watcher for board sync
     main_renderer = MainRenderer(matrix, data, sleepEvent, sbQueue)
+    # Lets the dashboard's board preview build a board without touching the panel
+    data.boards_registry = main_renderer.boards
     config_handler.set_main_renderer(main_renderer)
 
     # Start plugin config watcher to detect changes to plugin/builtin configs
