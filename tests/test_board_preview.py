@@ -218,6 +218,72 @@ def test_the_real_matrix_draws_a_preview_without_hardware(pv, monkeypatch):
         preview.stop()
 
 
+# --- panel sizes -------------------------------------------------------------------------
+
+# Panels come in many sizes (chained and stacked); the preview must be exactly the
+# configured panel, because boards choose layouts and clip text by matrix size.
+SIZES = [(32, 32), (64, 32), (128, 32), (128, 64), (192, 64), (64, 64), (256, 128)]
+
+
+@pytest.mark.parametrize('w,h', SIZES)
+def test_preview_is_exactly_the_panels_size(pv, w, h):
+    from sbio.boardpreview import BoardPreview
+    seen = []
+
+    class Measuring:
+        def __init__(self, data, matrix, sleep_event):
+            seen.append((matrix.width, matrix.height))  # what a board reads to pick its layout
+            self.matrix = matrix
+
+        def render(self):
+            self.matrix.render()
+
+    pv.data.boards_registry = types.SimpleNamespace(_boards={'m': Measuring})
+    preview = BoardPreview(pv.data, types.SimpleNamespace(width=w, height=h), matrix_factory=ShadowMatrix)
+    pv.mirror.request_frames()
+    try:
+        assert preview.start('m')[0]
+        assert wait_for(lambda: os.path.exists(pv.mirror.PREVIEW_FRAME_PATH))
+        with Image.open(pv.mirror.PREVIEW_FRAME_PATH) as img:
+            assert img.size == (w, h)
+        assert seen[0] == (w, h)
+    finally:
+        preview.stop()
+
+
+@pytest.mark.parametrize('w,h', SIZES)
+def test_the_real_matrix_previews_at_every_panel_size(pv, monkeypatch, w, h):
+    pytest.importorskip('numpy')
+    for name, mod in {
+        'driver': types.SimpleNamespace(is_hardware=lambda: False, is_emulated=lambda: True),
+        'RGBMatrixEmulator': types.SimpleNamespace(graphics=object()),
+        'utils': types.SimpleNamespace(round_normal=lambda x, *a: round(x)),
+    }.items():
+        monkeypatch.setitem(sys.modules, name, mod)
+    monkeypatch.delitem(sys.modules, 'renderer.matrix', raising=False)
+    from sbio.boardpreview import BoardPreview
+
+    class Corner:  # lights the last pixel, so a wrongly sized canvas would show
+        def __init__(self, data, matrix, sleep_event):
+            self.matrix = matrix
+
+        def render(self):
+            self.matrix.image.putpixel((self.matrix.width - 1, self.matrix.height - 1), (255, 255, 255))
+            self.matrix.render()
+
+    pv.data.boards_registry = types.SimpleNamespace(_boards={'corner': Corner})
+    preview = BoardPreview(pv.data, types.SimpleNamespace(width=w, height=h))  # real Matrix class
+    pv.mirror.request_frames()
+    try:
+        assert preview.start('corner')[0]
+        assert wait_for(lambda: os.path.exists(pv.mirror.PREVIEW_FRAME_PATH))
+        with Image.open(pv.mirror.PREVIEW_FRAME_PATH) as img:
+            assert img.size == (w, h)
+            assert img.convert('RGB').getpixel((w - 1, h - 1)) == (255, 255, 255)
+    finally:
+        preview.stop()
+
+
 # --- commands ---------------------------------------------------------------------------
 
 def test_preview_commands_validate(pv):
