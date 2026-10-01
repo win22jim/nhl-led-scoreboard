@@ -7,6 +7,10 @@ from pathlib import Path
 
 import pytest
 
+# These two are hardware/emulator scripts run by hand (see tests/README.md); they
+# parse command-line arguments at import time, so pytest must not collect them.
+collect_ignore = ['test_goal_renderer.py', 'test_penalty_renderer.py']
+
 ROOT = str(Path(__file__).parent.parent)
 SRC = str(Path(__file__).parent.parent / "src")
 

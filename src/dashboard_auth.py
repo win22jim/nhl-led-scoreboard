@@ -39,8 +39,11 @@ SESSION_LIFETIME = timedelta(days=30)
 MAX_FAILURES = 5
 FAILURE_WINDOW_SECONDS = 300
 
-# Reachable without logging in. /api/health only returns {"status": "ok"}.
-PUBLIC_ENDPOINTS = frozenset({'auth.login', 'auth.setup', 'health_check'})
+# Reachable without logging in. /api/health only returns {"status": "ok"}. The
+# manifest and icons are fetched by the browser without cookies (home-screen
+# install, tab icon), contain nothing private, and are needed on the login page.
+PUBLIC_ENDPOINTS = frozenset({'auth.login', 'auth.setup', 'health_check',
+                              'web_manifest', 'app_icon_png', 'favicon'})
 
 SAFE_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS'})
 

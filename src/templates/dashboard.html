@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#080c18">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Scoreboard">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/app-icon/180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/app-icon/32.png">
 <title>NHL LED Scoreboard — Dashboard</title>
 <style>
   :root {
@@ -368,7 +376,7 @@
      where the dropped chip will land. */
   .board-chip.drop-before { box-shadow: 0 -2px 0 0 var(--primary) inset, 0 -3px 0 0 var(--primary); }
   .board-chip.drop-after  { box-shadow: 0 2px 0 0 var(--primary) inset, 0 3px 0 0 var(--primary); }
-  .chip-drag { color: var(--text-dim); font-size: 13px; cursor: grab; }
+  .chip-drag { color: var(--text-dim); font-size: 13px; cursor: grab; margin-right: 6px; }
   .chip-remove { cursor: pointer; color: var(--text-dim); font-size: 16px; line-height: 1; transition: color var(--transition); }
   .chip-remove:hover { color: var(--error); }
   .drop-zone {
@@ -597,10 +605,10 @@
   .live-badge.ok   { color: var(--success); border-color: rgba(34,197,94,0.3);  background: rgba(34,197,94,0.06); }
   .live-badge.warn { color: var(--warning); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); }
   .live-badge.bad  { color: var(--error);   border-color: rgba(239,68,68,0.3);  background: rgba(239,68,68,0.06); }
-  .live-stage { position: relative; max-width: 960px; margin: 0 auto; padding: 12px;
+  .live-stage { --pad: 12px; position: relative; max-width: 960px; margin: 0 auto; padding: var(--pad);
                 background: #000; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .live-stage canvas { display: block; width: 100%; height: auto; }
-  .live-stage #liveGlow { position: absolute; top: 12px; left: 12px; width: calc(100% - 24px);
+  .live-stage #liveGlow { position: absolute; top: var(--pad); left: var(--pad); width: calc(100% - 2 * var(--pad));
                           filter: blur(8px); opacity: 0.7; mix-blend-mode: screen; pointer-events: none; }
   .live-stage.stale canvas { opacity: 0.35; }
 
@@ -621,11 +629,77 @@
   /* Account actions + password dialog */
   .header-actions { display: flex; align-items: center; gap: 8px; }
   .header-actions form { margin: 0; }
-  dialog#pwDialog { margin: auto; padding: 22px; width: min(92vw, 380px); color: var(--text);
+  dialog.modal { margin: auto; padding: 22px; width: min(92vw, 380px); color: var(--text);
                     background: var(--bg-card); border: 1px solid var(--border-hi); border-radius: var(--radius); }
-  dialog#pwDialog::backdrop { background: rgba(0,0,0,0.6); }
-  dialog#pwDialog input { width: 100%; }
+  dialog.modal::backdrop { background: rgba(0,0,0,0.6); }
+  dialog.modal input { width: 100%; }
+  .picker-list { display: flex; flex-direction: column; gap: 6px; max-height: 55vh; overflow-y: auto; }
+  .picker-item { display: block; width: 100%; text-align: left; padding: 10px 12px; cursor: pointer;
+                 color: var(--text); background: var(--bg-input); border: 1px solid var(--border);
+                 border-radius: var(--radius-sm); font: inherit; }
+  .picker-item:hover, .picker-item:focus-visible { border-color: var(--primary-hi); background: var(--bg-hover); outline: none; }
+  .picker-item small { display: block; color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+  .chip-moves { display: inline-flex; margin-left: auto; }
+  .chip-move { cursor: pointer; color: var(--text-dim); font-size: 10px; padding: 2px 6px; line-height: 1; }
+  .chip-move:hover { color: var(--primary-hi); }
+  .drop-zone { cursor: pointer; }
+  @media (pointer: coarse) {
+    .chip-move { font-size: 13px; padding: 8px 10px; }
+    .chip-remove { padding: 6px 8px; }
+    .pool-chip { cursor: default; }
+  }
   .pw-error { color: #fca5a5; font-size: 12px; min-height: 18px; margin-bottom: 8px; }
+
+  /* ── PHONES & SMALL TABLETS ── */
+  .nav-extra { display: none; text-decoration: none; }
+  @media (max-width: 760px) {
+    body { height: 100vh; height: 100dvh; }
+    .header { height: auto; min-height: 52px; padding: calc(6px + env(safe-area-inset-top)) 12px 6px; }
+    .header-nav, #statusUptime, .header-actions .hide-sm { display: none; }
+    .header-left { gap: 10px; min-width: 0; }
+    .status-chip { padding: 4px 10px; }
+
+    /* sidebar becomes a bottom tab bar */
+    .app-body { flex-direction: column; }
+    .main { order: 1; min-height: 0; }
+    .sidebar {
+      order: 2; width: auto; flex-direction: row; align-items: stretch;
+      padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      border-right: 0; border-top: 1px solid var(--border);
+      overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+    .sidebar-section, .sidebar-sep { display: none; }
+    .nav-item, .nav-extra {
+      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;
+      flex: 0 0 auto; min-width: 66px; padding: 8px 10px; font-size: 10px; text-align: center; white-space: nowrap;
+      border-left: 0; border-top: 2px solid transparent;
+    }
+    .nav-item.active { border-left-color: transparent; border-top-color: var(--primary); }
+    .nav-icon { font-size: 18px; width: auto; }
+
+    .tab-content { padding: 14px 12px; }
+    .footer-bar, .unsaved-banner { padding: 8px 12px; }
+    .footer-bar { gap: 8px; }
+    .footer-left { flex: 1; min-width: 0; }
+    #configStatus { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .footer-right .btn { padding: 7px 10px; font-size: 12px; }
+    .toast-container { left: 12px; right: 12px; bottom: calc(132px + env(safe-area-inset-bottom)); }
+
+    .field-row, .field-row-3, .states-grid { grid-template-columns: 1fr; }
+    .status-detail, .check-grid { grid-template-columns: 1fr 1fr; }
+    .card-header { flex-wrap: wrap; gap: 10px; }
+    .live-stage { --pad: 8px; }
+    .log-filter, .tags-dropdown { width: min(100%, 260px); }
+    .btn { padding: 9px 14px; }
+    /* 16px stops iOS zooming the page when a field is focused */
+    input[type="text"], input[type="number"], input[type="time"], input[type="password"], select, textarea { font-size: 16px; }
+  }
+  @media (max-width: 560px) {
+    .header h1 { display: none; }
+    .status-detail { grid-template-columns: 1fr; }
+    .check-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -648,7 +722,7 @@
       <span id="statusUptime" style="color:var(--text-dim);font-weight:400;margin-left:2px;"></span>
     </div>
     <div class="header-actions">
-      <button class="btn btn-outline btn-sm" type="button" onclick="openPasswordDialog()" title="Change the dashboard password">🔑 Password</button>
+      <button class="btn btn-outline btn-sm" type="button" onclick="openPasswordDialog()" title="Change the dashboard password" aria-label="Change password">🔑<span class="hide-sm"> Password</span></button>
       <form method="post" action="/logout"><button class="btn btn-outline btn-sm" type="submit">Sign out</button></form>
     </div>
   </div>
@@ -692,6 +766,8 @@
     <div class="nav-item" data-tab="advanced" onclick="switchTab('advanced')">
       <span class="nav-icon">🔧</span> Advanced I/O
     </div>
+    <a class="nav-item nav-extra" href="/"><span class="nav-icon">🖼️</span> Logos</a>
+    <a class="nav-item nav-extra" href="/team_summary"><span class="nav-icon">📈</span> Teams</a>
   </aside>
 
   <!-- MAIN CONTENT -->
@@ -943,10 +1019,10 @@
       <!-- ═══ BOARD ROTATION TAB ═══ -->
       <div class="tab-pane" id="tab-rotation">
         <div class="section-title">Board Rotation</div>
-        <div class="section-sub">Drag boards into each game state, or drag to reorder within a state.</div>
+        <div class="section-sub">Drag boards into each game state, or tap “+ Add board”. Use ▲ ▼ to reorder.</div>
 
         <div class="available-pool">
-          <div class="pool-title">Available Boards — drag into any state</div>
+          <div class="pool-title">Available Boards — drag into any state, or tap “+ Add board” in a state</div>
           <div class="pool-chips" id="poolChips"></div>
         </div>
 
@@ -1931,7 +2007,7 @@
 </div>
 
 <!-- CHANGE PASSWORD -->
-<dialog id="pwDialog">
+<dialog id="pwDialog" class="modal">
   <form onsubmit="submitPassword(); return false;">
     <div class="card-title" style="margin-bottom:14px;">Change password</div>
     <input type="text" name="username" value="scoreboard" autocomplete="username" hidden>
@@ -1948,6 +2024,15 @@
       <button class="btn btn-primary" type="submit">Change password</button>
     </div>
   </form>
+</dialog>
+
+<!-- ADD A BOARD TO A STATE (tap alternative to drag and drop) -->
+<dialog id="boardPicker" class="modal">
+  <div class="card-title" id="boardPickerTitle" style="margin-bottom:12px;">Add a board</div>
+  <div class="picker-list" id="boardPickerList"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+    <button class="btn btn-outline" type="button" onclick="$('boardPicker').close()">Cancel</button>
+  </div>
 </dialog>
 
 <!-- TOAST CONTAINER -->
@@ -2089,7 +2174,7 @@ function renderStateColumns() {
       <div class="state-body">
         ${s.description ? `<div class="state-desc">${escapeHTML(s.description)}</div>` : ''}
         <div class="board-list" id="state-${s.id}" data-state="${s.id}"></div>
-        <div class="drop-zone" id="dz-${s.id}" style="margin:0 8px 8px;">+ Drop board here</div>
+        <div class="drop-zone" id="dz-${s.id}" style="margin:0 8px 8px;" role="button" tabindex="0">+ Add board</div>
       </div>
     `;
     grid.appendChild(card);
@@ -2111,7 +2196,41 @@ function renderStateColumns() {
     dz.addEventListener('dragover', e => onDragOver(e, `dz-${s.id}`));
     dz.addEventListener('drop', e => onDrop(e, s.id));
     dz.addEventListener('dragleave', e => onDragLeave(e, `dz-${s.id}`));
+    dz.addEventListener('click', () => openBoardPicker(s.id));
+    dz.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBoardPicker(s.id); }
+    });
   });
+}
+
+// Tap-friendly way to add a board to a state (drag and drop still works too).
+function openBoardPicker(stateId) {
+  const have = new Set(getStateList(stateId));
+  const stateName = (STATES.find(s => s.id === stateId) || {}).name || stateId;
+  $('boardPickerTitle').textContent = 'Add to ' + stateName;
+  const list = $('boardPickerList');
+  list.innerHTML = '';
+  const options = AVAILABLE_BOARDS.filter(b => !b.system && !have.has(b.id));
+  if (!options.length) {
+    list.textContent = 'Every board is already in this list.';
+  }
+  options.forEach(b => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'picker-item';
+    btn.textContent = (b.name && b.name !== b.id) ? b.name : b.id;
+    if (b.description) {
+      const small = document.createElement('small');
+      small.textContent = b.description;
+      btn.appendChild(small);
+    }
+    btn.addEventListener('click', () => {
+      _performDrop({board: b.id, fromPool: true}, stateId, null, false);
+      $('boardPicker').close();
+    });
+    list.appendChild(btn);
+  });
+  $('boardPicker').showModal();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2723,8 +2842,29 @@ function makeChip(board, state) {
     updateStateCount(state);
     markDirty();
   });
+  const moves = document.createElement('span');
+  moves.className = 'chip-moves';
+  [['▲', 'Move up', -1], ['▼', 'Move down', 1]].forEach(([glyph, title, dir]) => {
+    const b = document.createElement('span');
+    b.className = 'chip-move';
+    b.textContent = glyph;
+    b.title = title;
+    b.setAttribute('role', 'button');
+    b.setAttribute('aria-label', title);
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      const list = chip.parentElement;
+      if (!list) return;
+      if (dir < 0 && chip.previousElementSibling) list.insertBefore(chip, chip.previousElementSibling);
+      else if (dir > 0 && chip.nextElementSibling) list.insertBefore(chip.nextElementSibling, chip);
+      else return;
+      markDirty();
+    });
+    moves.appendChild(b);
+  });
   chip.appendChild(drag);
   chip.appendChild(label);
+  chip.appendChild(moves);
   chip.appendChild(remove);
 
   chip.addEventListener('dragstart', e => {

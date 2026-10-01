@@ -45,6 +45,11 @@ except ImportError:
     import control_channel
 
 try:
+    from src import app_icon
+except ImportError:
+    import app_icon
+
+try:
     from src.dashboard_auth import init_auth, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
 except ImportError:
     from dashboard_auth import init_auth, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
@@ -295,6 +300,44 @@ def get_schedule():
     
     games = fetch_team_schedule(team, month)
     return jsonify({"games": games})
+
+
+@app.route('/manifest.webmanifest')
+def web_manifest():
+    """Lets phones install the dashboard to the home screen as an app."""
+    manifest = {
+        "name": "NHL LED Scoreboard",
+        "short_name": "Scoreboard",
+        "description": "Monitor and control your LED scoreboard.",
+        "start_url": "/dashboard",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#080c18",
+        "theme_color": "#080c18",
+        "icons": [
+            {"src": "/app-icon/192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+            {"src": "/app-icon/512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+        ],
+    }
+    resp = jsonify(manifest)
+    resp.mimetype = 'application/manifest+json'
+    return resp
+
+
+@app.route('/app-icon/<int:size>.png')
+def app_icon_png(size):
+    if size not in app_icon.SIZES:
+        abort(404)
+    resp = app.response_class(app_icon.render_icon(size), mimetype='image/png')
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
+
+@app.route('/favicon.ico')
+def favicon():
+    resp = app.response_class(app_icon.render_icon(32), mimetype='image/png')
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
 
 
 @app.route('/api/health', methods=['GET'])
