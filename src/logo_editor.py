@@ -29,8 +29,19 @@ import shutil
 import datetime
 import subprocess
 import signal
+import shlex
 import argparse
-from flask import Flask, render_template, request, jsonify, send_from_directory, abort
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort
+
+try:
+    from src import frame_mirror
+except ImportError:
+    import frame_mirror
+
+try:
+    from src.dashboard_auth import init_auth, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
+except ImportError:
+    from dashboard_auth import init_auth, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
 
 # Import the logo scraper logic
 try:
@@ -53,6 +64,15 @@ parser.add_argument('--port',
                     default=5000,
                     type=int,
                     help='Port to run the editor web server on (default: 5000)')
+parser.add_argument('--host',
+                    default='0.0.0.0',
+                    help='Address to listen on (default: 0.0.0.0, i.e. the whole local network)')
+parser.add_argument('--set-password',
+                    action='store_true',
+                    help='Set or reset the dashboard password, then exit')
+parser.add_argument('--debug',
+                    action='store_true',
+                    help='Run Flask in debug mode. Development only: never on a shared network.')
 
 args, unknown = parser.parse_known_args()
 
@@ -106,6 +126,8 @@ except (ImportError, OSError) as e:
     cairosvg = None
 
 app = Flask(__name__, template_folder='templates')
+AUTH_FILE = os.path.join(INSTALL_DIR, 'config', 'dashboard_auth.json')
+auth_store = init_auth(app, AUTH_FILE)
 
 emulator_process = None
 current_layout = {"w": 64, "h": 32} 
@@ -130,6 +152,15 @@ TEAMS = [
     "PHI", "PIT", "SJS", "SEA", "STL", "TBL", "TOR", "UTA", "VAN", "VGK", 
     "WSH", "WPG"
 ]
+
+# Team codes end up in filesystem paths (assets/logos/<team>/...) and, for the
+# simulator, a shell command, so only plain identifiers are accepted. This is
+# deliberately looser than TEAMS: custom/historical logo folders are allowed.
+_TEAM_RE = re.compile(r'[A-Za-z0-9_]{1,16}')
+_CONFIG_FILE_RE = re.compile(r'[A-Za-z0-9_][A-Za-z0-9_.-]*\.json')
+
+def _valid_team(team):
+    return isinstance(team, str) and _TEAM_RE.fullmatch(team) is not None
 
 @app.route('/')
 def index():
@@ -349,12 +380,30 @@ def emulator_start():
                 print(f"[Emulator] Error killing previous process: {e}")
         emulator_process = None
 
-    data = request.json
-    cols = data.get('w', 64)
-    rows = data.get('h', 32)
+    data = request.get_json(silent=True) or {}
     mode = data.get('mode', 'live')
+    try:
+        cols = int(data.get('w', 64))
+        rows = int(data.get('h', 32))
+        if not (1 <= cols <= 512 and 1 <= rows <= 512):
+            raise ValueError("panel size out of range")
+        if mode not in ('live', 'simulator'):
+            raise ValueError("unknown mode")
+        if mode == 'simulator':
+            team = str(data.get('team', '')).upper()
+            date_str = str(data.get('date', ''))
+            speed = float(data.get('speed', 1.0))
+            if not _valid_team(team):
+                raise ValueError("invalid team")
+            if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', date_str):
+                raise ValueError("date must be YYYY-MM-DD")
+            if not (0 < speed <= 100):
+                raise ValueError("speed out of range")
+            stop_at_end = bool(data.get('stop_at_end', False))
+    except (TypeError, ValueError) as e:
+        return jsonify({"status": "error", "message": f"Invalid emulator request: {e}"}), 400
     current_layout = {"w": cols, "h": rows}
-    
+
     cmd_parts = []
     
     if USE_CURRENT_ENV:
@@ -366,12 +415,10 @@ def emulator_start():
         executable = "python3"
 
     if mode == 'simulator':
-        team = data.get('team')
-        date_str = data.get('date')
-        speed = data.get('speed', 1.0)
-        stop_at_end = data.get('stop_at_end', False)
-        
-        script_args = f"src/scripts/start_simulation.py --team {team} --date {date_str} --speed {speed}"
+        # team/date/speed were validated above; quote anyway since this string
+        # is handed to a shell.
+        script_args = (f"src/scripts/start_simulation.py --team {shlex.quote(team)} "
+                       f"--date {shlex.quote(date_str)} --speed {speed}")
         if stop_at_end:
             script_args += " --stop-at-end"
             
@@ -454,6 +501,8 @@ def get_logos_config():
 
 @app.route('/api/config/<filename>', methods=['GET', 'POST'])
 def handle_config(filename):
+    if not _CONFIG_FILE_RE.fullmatch(filename):
+        return jsonify({"status": "error", "message": "Invalid config file name"}), 400
     file_path = os.path.join(CONFIG_DIR, filename)
     
     if request.method == 'GET':
@@ -685,6 +734,8 @@ def upload_alt_logo():
 
     if not team:
         return jsonify({"status": "error", "message": "Missing team"}), 400
+    if not _valid_team(team):
+        return jsonify({"status": "error", "message": "Invalid team"}), 400
 
     try:
         # Determine target dimensions based on current layout
@@ -839,12 +890,14 @@ def upload_alt_logo():
 
 @app.route('/api/discard_alt', methods=['POST'])
 def discard_alt_logo():
-    team = request.json.get('team')
+    team = (request.get_json(silent=True) or {}).get('team')
     if not team:
         return jsonify({"status": "error", "message": "Missing team"}), 400
 
     if '|' in team:
         team = team.split('|')[0]
+    if not _valid_team(team):
+        return jsonify({"status": "error", "message": "Invalid team"}), 400
 
     try:
         # 1. Remove from global logos.json
@@ -900,6 +953,8 @@ def save_logo_selection():
         # Clean team code if it comes in with suffix (though frontend should handle this)
         if '|' in team:
             team = team.split('|')[0]
+        if not _valid_team(team):
+            return jsonify({"status": "error", "message": "Invalid team"}), 400
 
         logos_file_path = os.path.join(INSTALL_DIR, 'config', 'logos.json')
         
@@ -1062,6 +1117,35 @@ def scoreboard_control():
         return jsonify({"status": "success", "output": result.stdout.strip()})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/scoreboard/frame', methods=['GET'])
+def scoreboard_frame():
+    """The picture currently on the LED panel, as a PNG.
+
+    Asking for it also wakes the renderer's publisher (frame_mirror), which
+    stays idle when nobody is watching. Poll every second or so.
+    X-Frame-Age is how many seconds old the picture is; a large value means the
+    scoreboard isn't running.
+    """
+    try:
+        frame_mirror.request_frames()
+    except OSError:
+        pass
+    age = frame_mirror.frame_age()
+    if age is None:
+        resp = jsonify({"available": False})
+        resp.status_code = 503
+    else:
+        try:
+            resp = send_file(frame_mirror.FRAME_PATH, mimetype='image/png', max_age=0)
+        except OSError:
+            resp = jsonify({"available": False})
+            resp.status_code = 503
+        else:
+            resp.headers['X-Frame-Age'] = f"{age:.1f}"
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
 
 @app.route('/api/scoreboard/logs', methods=['GET'])
 def scoreboard_logs():
@@ -1243,8 +1327,32 @@ def serve_assets(filename):
 
     return abort(404)
 
+def _set_password_interactively():
+    import getpass
+    print("Set the dashboard password (leave blank to cancel).")
+    while True:
+        first = getpass.getpass("New password: ")
+        if not first:
+            print("Cancelled; password unchanged.")
+            return 1
+        if not (MIN_PASSWORD_LENGTH <= len(first) <= MAX_PASSWORD_LENGTH):
+            print(f"Password must be {MIN_PASSWORD_LENGTH}-{MAX_PASSWORD_LENGTH} characters.")
+            continue
+        if getpass.getpass("Confirm password: ") != first:
+            print("Passwords did not match, try again.")
+            continue
+        break
+    auth_store.set_password(first)
+    print("Password updated. Everyone is signed out and must log in again.")
+    return 0
+
+
 if __name__ == '__main__':
+    if args.set_password:
+        sys.exit(_set_password_interactively())
     if not os.path.exists('templates'):
         os.makedirs('templates')
-    print(f"Starting Editor on http://0.0.0.0:{args.port}")
-    app.run(host='0.0.0.0', port=args.port, debug=True)
+    if args.debug:
+        print("WARNING: debug mode lets anyone who can reach this port run code on this machine.")
+    print(f"Starting Editor on http://{args.host}:{args.port}")
+    app.run(host=args.host, port=args.port, debug=args.debug)

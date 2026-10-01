@@ -138,6 +138,7 @@ config/config.json
 config/*.config.json
 config/config.json.backup
 config/location.json
+config/dashboard_auth.json
 
 # RGBMatrixEmulator
 # emulator_config.json

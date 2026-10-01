@@ -588,6 +588,30 @@
   .collapse-section.open .collapse-arrow { transform: rotate(180deg); }
   .collapse-body { display: none; padding: 16px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
   .collapse-section.open .collapse-body { display: block; }
+
+  /* Live display */
+  .live-meta { display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--text-muted); }
+  .live-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .live-badge { padding: 3px 10px; border-radius: 20px; font-weight: 600; font-size: 11px;
+                border: 1px solid var(--border); color: var(--text-muted); background: var(--bg); }
+  .live-badge.ok   { color: var(--success); border-color: rgba(34,197,94,0.3);  background: rgba(34,197,94,0.06); }
+  .live-badge.warn { color: var(--warning); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); }
+  .live-badge.bad  { color: var(--error);   border-color: rgba(239,68,68,0.3);  background: rgba(239,68,68,0.06); }
+  .live-stage { position: relative; max-width: 960px; margin: 0 auto; padding: 12px;
+                background: #000; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .live-stage canvas { display: block; width: 100%; height: auto; }
+  .live-stage #liveGlow { position: absolute; top: 12px; left: 12px; width: calc(100% - 24px);
+                          filter: blur(8px); opacity: 0.7; mix-blend-mode: screen; pointer-events: none; }
+  .live-stage.stale canvas { opacity: 0.35; }
+
+  /* Account actions + password dialog */
+  .header-actions { display: flex; align-items: center; gap: 8px; }
+  .header-actions form { margin: 0; }
+  dialog#pwDialog { margin: auto; padding: 22px; width: min(92vw, 380px); color: var(--text);
+                    background: var(--bg-card); border: 1px solid var(--border-hi); border-radius: var(--radius); }
+  dialog#pwDialog::backdrop { background: rgba(0,0,0,0.6); }
+  dialog#pwDialog input { width: 100%; }
+  .pw-error { color: #fca5a5; font-size: 12px; min-height: 18px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -608,6 +632,10 @@
       <div class="dot"></div>
       <span id="statusLabel">Checking…</span>
       <span id="statusUptime" style="color:var(--text-dim);font-weight:400;margin-left:2px;"></span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline btn-sm" type="button" onclick="openPasswordDialog()" title="Change the dashboard password">🔑 Password</button>
+      <form method="post" action="/logout"><button class="btn btn-outline btn-sm" type="submit">Sign out</button></form>
     </div>
   </div>
 </div>
@@ -660,6 +688,23 @@
       <div class="tab-pane active" id="tab-status">
         <div class="section-title">System Status</div>
         <div class="section-sub">Live view of the scoreboard service and recent activity.</div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Live Display</div>
+              <div class="card-desc" style="margin-bottom:0;">What is on the scoreboard right now. Refreshes about once a second.</div>
+            </div>
+            <div class="live-meta">
+              <span class="live-badge" id="liveBadge">Connecting…</span>
+              <label class="live-opt"><input type="checkbox" id="liveLed" checked onchange="setLiveLed(this.checked)"> LED look</label>
+            </div>
+          </div>
+          <div class="live-stage" id="liveStage">
+            <canvas id="liveGlow" aria-hidden="true"></canvas>
+            <canvas id="liveCanvas" role="img" aria-label="Live view of the scoreboard display"></canvas>
+          </div>
+        </div>
 
         <div class="status-detail">
           <div class="stat-box">
@@ -1838,10 +1883,47 @@
   </div>
 </div>
 
+<!-- CHANGE PASSWORD -->
+<dialog id="pwDialog">
+  <form onsubmit="submitPassword(); return false;">
+    <div class="card-title" style="margin-bottom:14px;">Change password</div>
+    <input type="text" name="username" value="scoreboard" autocomplete="username" hidden>
+    <div class="field"><label class="field-label" for="pwCurrent">Current password</label>
+      <input type="password" id="pwCurrent" autocomplete="current-password" required></div>
+    <div class="field"><label class="field-label" for="pwNew">New password</label>
+      <input type="password" id="pwNew" autocomplete="new-password" minlength="8" required>
+      <div class="field-hint">At least 8 characters. Signs out your other devices.</div></div>
+    <div class="field"><label class="field-label" for="pwConfirm">Confirm new password</label>
+      <input type="password" id="pwConfirm" autocomplete="new-password" minlength="8" required></div>
+    <div class="pw-error" id="pwError" role="alert"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-outline" type="button" onclick="$('pwDialog').close()">Cancel</button>
+      <button class="btn btn-primary" type="submit">Change password</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+// An API call that comes back 401 means the login session ended: go sign in.
+// Retry once first: changing the password swaps the session cookie, and a
+// background poll that left just before the swap arrives carrying the old one.
+// (A 401 means the request was refused unrun, so retrying it is always safe.)
+(() => {
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    let r = await nativeFetch(...args);
+    if (r.status === 401) {
+      await new Promise(done => setTimeout(done, 400));
+      r = await nativeFetch(...args);
+      if (r.status === 401) location.href = '/login?next=' + encodeURIComponent(location.pathname);
+    }
+    return r;
+  };
+})();
+
 // ═══════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════
@@ -1905,6 +1987,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadConfig();
   startStatusPolling();
   startLogPolling();
+  startLivePolling();
   document.addEventListener('click', e => {
     if (!e.target.closest('#teamDropdown') && !e.target.closest('#teamsWrapper')) {
       document.getElementById('teamDropdown').style.display = 'none';
@@ -1993,6 +2076,7 @@ function switchTab(name) {
   document.querySelector(`[data-tab="${name}"]`).classList.add('active');
   document.getElementById(`tab-${name}`).classList.add('active');
   if (name === 'logs') fetchLogs();
+  if (name === 'status') pollLive();
 }
 
 function toggleAccordion(id) {
@@ -2975,6 +3059,138 @@ function startLogPolling() {
   logInterval = setInterval(() => {
     if (document.querySelector('[data-tab="logs"].active')) fetchLogs();
   }, 4000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// LIVE DISPLAY
+// The scoreboard publishes the frame on its LED panel; we fetch it about once a
+// second (only while this tab is visible) and redraw it as round LED pixels.
+// ═══════════════════════════════════════════════════════════
+
+const live = { busy: false, led: true, img: null, scratch: null };
+try { live.led = localStorage.getItem('liveLed') !== '0'; } catch {}
+
+function setLiveBadge(text, kind) {
+  const el = $('liveBadge');
+  el.textContent = text;
+  el.className = 'live-badge ' + (kind || '');
+}
+
+function setLiveLed(on) {
+  live.led = on;
+  try { localStorage.setItem('liveLed', on ? '1' : '0'); } catch {}
+  drawLive();
+}
+
+function drawLive() {
+  const img = live.img;
+  if (!img) return;
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const cell = Math.max(4, Math.min(16, Math.floor(960 / w)));  // canvas px per LED
+  const cv = $('liveCanvas'), glow = $('liveGlow');
+  cv.width = glow.width = w * cell;
+  cv.height = glow.height = h * cell;
+  const ctx = cv.getContext('2d');
+
+  if (!live.led) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    glow.style.display = 'none';
+    return;
+  }
+  glow.style.display = '';
+
+  if (!live.scratch) live.scratch = document.createElement('canvas');
+  live.scratch.width = w; live.scratch.height = h;
+  const sctx = live.scratch.getContext('2d', { willReadFrequently: true });
+  sctx.drawImage(img, 0, 0);
+  const px = sctx.getImageData(0, 0, w, h).data;
+
+  ctx.fillStyle = '#050507';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  const radius = cell * 0.42;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const r = px[i], g = px[i + 1], b = px[i + 2];
+      ctx.fillStyle = (r + g + b < 12) ? '#0c0c10' : `rgb(${r},${g},${b})`;
+      ctx.beginPath();
+      ctx.arc((x + 0.5) * cell, (y + 0.5) * cell, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  glow.getContext('2d').drawImage(cv, 0, 0);
+}
+
+async function pollLive() {
+  if (live.busy || document.hidden || !$('tab-status').classList.contains('active')) return;
+  live.busy = true;
+  try {
+    const r = await fetch('/api/scoreboard/frame', { cache: 'no-store' });
+    if (r.status === 503) {
+      setLiveBadge('Waiting for scoreboard…', 'warn');
+      return;
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const age = parseFloat(r.headers.get('X-Frame-Age') || '0');
+    const url = URL.createObjectURL(await r.blob());
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      live.img = img;
+      drawLive();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    const stale = age > 6;
+    $('liveStage').classList.toggle('stale', stale);
+    setLiveBadge(stale ? 'No signal — is the scoreboard running?' : 'Live', stale ? 'bad' : 'ok');
+  } catch {
+    setLiveBadge('Unavailable', 'bad');
+  } finally {
+    live.busy = false;
+  }
+}
+
+function startLivePolling() {
+  $('liveLed').checked = live.led;
+  pollLive();
+  setInterval(pollLive, 1000);
+  document.addEventListener('visibilitychange', pollLive);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PASSWORD
+// ═══════════════════════════════════════════════════════════
+
+function openPasswordDialog() {
+  ['pwCurrent', 'pwNew', 'pwConfirm'].forEach(id => { $(id).value = ''; });
+  $('pwError').textContent = '';
+  $('pwDialog').showModal();
+  $('pwCurrent').focus();
+}
+
+async function submitPassword() {
+  const err = $('pwError');
+  err.textContent = '';
+  if ($('pwNew').value !== $('pwConfirm').value) {
+    err.textContent = 'New passwords do not match.';
+    return;
+  }
+  try {
+    const r = await fetch('/api/auth/password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({current: $('pwCurrent').value, new: $('pwNew').value})
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = d.error || 'Could not change the password.'; return; }
+    $('pwDialog').close();
+    toast('Password changed. Your other devices were signed out.', 'info');
+  } catch (e) {
+    err.textContent = 'Error: ' + e.message;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════

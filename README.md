@@ -107,6 +107,7 @@ A full-featured dashboard served at `http://<pi-ip>:5000/dashboard` by the exist
 - Config editor with tabs for Preferences, Board Rotation (drag-and-drop across all 4 game states), Board Settings, Advanced I/O (MQTT, screensaver, dimmer, pushbutton)
 - Live log viewer (stdout/stderr) with auto-scroll and filtering
 - Auto-backup of `config.json` on save (5-version rotation)
+- Password login (chosen on first visit; reset with `python3 src/logo_editor.py --set-password`) and a **Live Display** that mirrors the real LED panel. See [docs/LOGO_EDITOR_README.md](docs/LOGO_EDITOR_README.md#signing-in)
 
 **Logo editor and dashboard auto-start via supervisord** ([`1cebe55`](https://github.com/win22jim/nhl-led-scoreboard/commit/1cebe55))
 Adds `scripts/supervisor/logo-editor.conf` so the Flask server (logo editor + dashboard) starts automatically with the Pi and restarts on failure. `sb-init` now installs the supervisor config on fresh installs so no manual setup is required.

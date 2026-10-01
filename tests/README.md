@@ -80,6 +80,17 @@ uv run tests/test_penalty_renderer.py --emulated --loglevel=DEBUG
 **Supported Teams:**
 NJD, NYI, NYR, PHI, PIT, BOS, BUF, MTL, OTT, TOR, CAR, FLA, TBL, WSH, CHI, DET, NSH, STL, CGY, COL, EDM, VAN, ANA, DAL, LAK, SJS, CBJ, MIN, WPG, ARI, VGK, SEA, UTA
 
+### Automated tests (pytest)
+
+`test_dashboard_auth.py` (login, CSRF, first-run setup, input hardening of the dashboard API) and `test_frame_mirror.py` (the dashboard's live display feed) are ordinary pytest tests that need no hardware or network:
+
+```bash
+pip install flask pillow pytest
+python -m pytest tests/test_dashboard_auth.py tests/test_frame_mirror.py
+```
+
+They run against a throwaway install directory, so your real `config/` is never touched.
+
 ---
 
 ## Adding New Tests

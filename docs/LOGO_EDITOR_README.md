@@ -61,6 +61,9 @@ If you have a custom setup, you can specify paths using arguments:
 | Argument | Description | Default |
 | --- | --- | --- |
 | `--port` | The port to run the web editor on. | `5000` |
+| `--host` | Address to listen on. Use `127.0.0.1` to allow only the device itself (e.g. behind a reverse proxy). | `0.0.0.0` (whole local network) |
+| `--set-password` | Set or reset the dashboard password, then exit. See [Signing in](#signing-in). | |
+| `--debug` | Flask debug mode. **Development only**: it lets anyone who can reach the port run code on the device. | off |
 | `--dir` | The root directory of the scoreboard installation. | Current Directory |
 | `--venv` | Path to your python virtual environment. | Auto-detects active env, or defaults to `~/nhlsb-venv` |
 
@@ -69,6 +72,23 @@ If you have a custom setup, you can specify paths using arguments:
 ```bash
 python3 logo_editor.py --port 8080 --dir /opt/nhl-led-scoreboard --venv /opt/my_venv
 ```
+
+---
+
+## Signing in
+
+The dashboard and editor are protected by a single password.
+
+- **First visit:** you are sent to a setup page to choose a password. Setup is only offered to devices on your local network (home Wi-Fi, or Tailscale), never to the public internet, so do this soon after installing or upgrading. Anything that was calling the dashboard's `/api/...` endpoints without logging in will now get `401`.
+- **Afterwards:** every page and API call needs the login. Browsers stay signed in for 30 days. Use **🔑 Password** in the dashboard header to change it (this signs out your other devices) and **Sign out** to end the session.
+- **Forgot it?** On the scoreboard (SSH in), run `python3 src/logo_editor.py --set-password` (using the scoreboard's virtualenv). Everyone is signed out and must use the new password.
+- Only the salted hash of the password is stored, in `config/dashboard_auth.json` (not committed to git, readable only by its owner).
+
+The login stops other devices on your network, and web pages open in your browser, from changing your scoreboard. It is not encryption: traffic is plain HTTP, so don't expose port 5000 directly to the internet. For remote access use a VPN such as Tailscale.
+
+## Live display
+
+The Status tab shows what is on the LED panel right now, redrawn as round LEDs and refreshed about once a second (turn off **LED look** for a plain scaled image). It is the real frame from the running scoreboard, not a simulation. The scoreboard only prepares these frames while a dashboard page is open, so it costs nothing when nobody is watching. "No signal" means the scoreboard isn't running.
 
 ---
 

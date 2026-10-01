@@ -12,6 +12,7 @@ import sys
 
 import numpy as np
 
+from frame_mirror import FrameMirror
 from utils import round_normal
 
 DEBUG = False
@@ -296,6 +297,10 @@ class Matrix:
 
         self.use_canvas = False
 
+        # Feeds the web dashboard's live display; does nothing unless a
+        # dashboard page is open (see frame_mirror.py).
+        self.frame_mirror = FrameMirror()
+
         # When True, render() stamps a small red marker in a corner on every
         # frame to signal that the NHL API is unreachable. Set centrally (see
         # MainRenderer / Data) rather than by individual boards, so the marker
@@ -409,6 +414,7 @@ class Matrix:
                 )
 
         self._stamp_api_down_indicator()
+        self.frame_mirror.publish(self.image)
 
         if (self.use_canvas):
             self.canvas.SetImage(self.image.convert('RGB'), 0, 0)
