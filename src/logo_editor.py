@@ -50,6 +50,11 @@ except ImportError:
     import app_icon
 
 try:
+    from src import config_safety
+except ImportError:
+    import config_safety
+
+try:
     from src.dashboard_auth import init_auth, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
 except ImportError:
     from dashboard_auth import init_auth, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
@@ -1043,6 +1048,7 @@ def save_logo_selection():
 # =============================================================================
 
 MAIN_CONFIG_FILE = os.path.join(INSTALL_DIR, 'config', 'config.json')
+SCHEMA_FILE = os.path.join(INSTALL_DIR, 'config', 'config.schema.json')
 STDOUT_LOG = '/var/log/scoreboard.stdout.log'
 STDERR_LOG = '/var/log/scoreboard.stderr.log'
 
@@ -1063,32 +1069,63 @@ def get_scoreboard_config():
 
 @app.route('/api/scoreboard/config', methods=['POST'])
 def save_scoreboard_config():
+    """Save config.json. Refuses (422) anything that fails config.schema.json,
+    because the scoreboard won't start on an invalid config. The previous file is
+    kept as a timestamped backup (see /api/scoreboard/config/backups)."""
     try:
-        new_config = request.json
+        new_config = request.get_json(silent=True)
         if not new_config:
             return jsonify({"error": "No data received"}), 400
-
-        config_dir = os.path.join(INSTALL_DIR, 'config')
-
-        if os.path.exists(MAIN_CONFIG_FILE):
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            shutil.copy2(MAIN_CONFIG_FILE, os.path.join(config_dir, f"config.json.{timestamp}.bak"))
-            try:
-                backups = sorted([
-                    f for f in os.listdir(config_dir)
-                    if f.startswith('config.json.') and f.endswith('.bak')
-                ])
-                while len(backups) > 5:
-                    os.remove(os.path.join(config_dir, backups.pop(0)))
-            except Exception:
-                pass
-
-        with open(MAIN_CONFIG_FILE, 'w') as f:
-            json.dump(new_config, f, indent=4)
-
+        try:
+            config_safety.write_config(new_config, MAIN_CONFIG_FILE, SCHEMA_FILE)
+        except config_safety.ConfigError as e:
+            return jsonify({"status": "error", "message": e.message, "path": e.path}), 422
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/scoreboard/config/preview', methods=['POST'])
+def preview_scoreboard_config():
+    """Dry run of a save: is the proposed config valid, and what would change?"""
+    proposed = request.get_json(silent=True)
+    if not isinstance(proposed, dict):
+        return jsonify({"valid": False, "error": {"message": "No config received.", "path": ""},
+                        "changes": []}), 400
+    try:
+        with open(MAIN_CONFIG_FILE, 'r') as f:
+            current = json.load(f)
+    except (OSError, ValueError):
+        current = {}
+    error = None
+    try:
+        config_safety.validate_config(proposed, SCHEMA_FILE)
+    except config_safety.ConfigError as e:
+        error = {"message": e.message, "path": e.path}
+    summary = config_safety.diff_summary(current, proposed)
+    return jsonify({"valid": error is None, "error": error, **summary})
+
+
+@app.route('/api/scoreboard/config/backups', methods=['GET'])
+def list_config_backups():
+    return jsonify({"backups": config_safety.list_backups(os.path.dirname(MAIN_CONFIG_FILE))})
+
+
+@app.route('/api/scoreboard/config/restore', methods=['POST'])
+def restore_config_backup():
+    """Make a backup the live config. The config it replaces is backed up first."""
+    name = (request.get_json(silent=True) or {}).get('name', '')
+    try:
+        config_safety.restore_backup(name, MAIN_CONFIG_FILE, SCHEMA_FILE)
+    except config_safety.BadBackupName as e:
+        return jsonify({"status": "error", "message": e.message}), 400
+    except config_safety.ConfigError as e:
+        return jsonify({"status": "error", "message": e.message, "path": e.path}), 422
+    except FileNotFoundError:
+        return jsonify({"status": "error", "message": "That backup no longer exists."}), 404
+    except OSError as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    return jsonify({"status": "success"})
 
 # Runtime status file written by the scoreboard process (Data._publish_runtime_status).
 # Lives in /tmp because both the scoreboard and Flask run as `pi` and we don't

@@ -90,6 +90,29 @@ The login stops other devices on your network, and web pages open in your browse
 
 The Status tab shows what is on the LED panel right now, redrawn as round LEDs and refreshed about once a second (turn off **LED look** for a plain scaled image). It is the real frame from the running scoreboard, not a simulation. The scoreboard only prepares these frames while a dashboard page is open, so it costs nothing when nobody is watching. "No signal" means the scoreboard isn't running.
 
+## Quick controls
+
+Under the live display on the Status tab:
+
+- **Brightness**: set it by hand. Disabled (with an explanation) while the automatic dimmer is on, because the dimmer owns brightness then.
+- **Screensaver**: start it or wake the display. Only available when the screensaver is enabled in the config.
+- **Show a board**: jump straight to any board, e.g. to check how the clock looks.
+
+These act on the running scoreboard immediately, with no config edit and no MQTT broker (the dashboard talks to the scoreboard through a small spool directory in `/tmp`). Each button reports what actually happened, or why it was refused. A command that can't be delivered within a few seconds is cancelled, so it never fires later when the scoreboard comes back.
+
+## Saving settings safely
+
+The scoreboard refuses to start if `config.json` doesn't match `config/config.schema.json`, so the dashboard never writes a config that doesn't validate.
+
+1. **Save Config** first checks your settings against the schema. A problem is shown with the setting it's about, and **nothing is written**.
+2. If it's valid, **Review changes** lists exactly what will change (passwords and keys are masked). Cancel to back out.
+3. Saving applies **only the settings you changed** on top of the file as it is on disk. Settings the dashboard has no field for (added by newer boards or plugins, or edited by hand) are kept, and boards you never configured aren't given values. The file is replaced atomically.
+4. The version you replaced is kept. **History** (footer) lists the last 10; **Restore** brings one back after a confirm tap. Restoring backs up your current settings first, so it can be undone.
+
+## On your phone
+
+Open the dashboard in your phone's browser; below ~760px wide the sidebar becomes a bottom tab bar. To install it like an app: in Safari tap **Share → Add to Home Screen** (Chrome: **⋮ → Install app**). It opens full screen with its own icon. In **Board Rotation**, tap **+ Add board** in a state and use **▲ ▼** to reorder, since drag-and-drop is unreliable on touchscreens (it still works with a mouse).
+
 ---
 
 ## Interface Guide

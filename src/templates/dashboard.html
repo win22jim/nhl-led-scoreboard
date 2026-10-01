@@ -639,6 +639,20 @@
                  border-radius: var(--radius-sm); font: inherit; }
   .picker-item:hover, .picker-item:focus-visible { border-color: var(--primary-hi); background: var(--bg-hover); outline: none; }
   .picker-item small { display: block; color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+  dialog.modal.wide { width: min(94vw, 640px); }
+  .modal-sub { color: var(--text-muted); font-size: 12px; margin: -6px 0 12px; }
+  .change-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; margin-bottom: 14px; }
+  .change-row { padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border);
+                border-radius: var(--radius-sm); font-size: 12px; }
+  .change-path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--primary-hi); word-break: break-all; }
+  .change-vals { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; word-break: break-word; }
+  .change-old { color: var(--error); text-decoration: line-through; opacity: 0.85; }
+  .change-new { color: var(--success); }
+  .change-tag { color: var(--text-dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .history-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px;
+                 background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; }
+  .history-row small { color: var(--text-dim); display: block; font-size: 11px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
   .chip-moves { display: inline-flex; margin-left: auto; }
   .chip-move { cursor: pointer; color: var(--text-dim); font-size: 10px; padding: 2px 6px; line-height: 1; }
   .chip-move:hover { color: var(--primary-hi); }
@@ -655,7 +669,7 @@
   @media (max-width: 760px) {
     body { height: 100vh; height: 100dvh; }
     .header { height: auto; min-height: 52px; padding: calc(6px + env(safe-area-inset-top)) 12px 6px; }
-    .header-nav, #statusUptime, .header-actions .hide-sm { display: none; }
+    .header-nav, #statusUptime, .hide-sm { display: none; }
     .header-left { gap: 10px; min-width: 0; }
     .status-chip { padding: 4px 10px; }
 
@@ -1999,7 +2013,8 @@
         <span id="configStatus" style="font-size:12px;color:var(--text-dim);">Loading config…</span>
       </div>
       <div class="footer-right">
-        <button class="btn btn-outline" onclick="loadConfig()">↩ Discard Changes</button>
+        <button class="btn btn-outline" onclick="openHistory()" title="Restore an earlier saved config" aria-label="Config history">🕘<span class="hide-sm"> History</span></button>
+        <button class="btn btn-outline" onclick="loadConfig()" aria-label="Discard changes">↩<span class="hide-sm"> Discard Changes</span></button>
         <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">💾 Save Config</button>
       </div>
     </div>
@@ -2023,6 +2038,36 @@
       <button class="btn btn-outline" type="button" onclick="$('pwDialog').close()">Cancel</button>
       <button class="btn btn-primary" type="submit">Change password</button>
     </div>
+  </form>
+</dialog>
+
+<!-- REVIEW CHANGES BEFORE SAVING -->
+<dialog id="reviewDialog" class="modal wide">
+  <form method="dialog">
+    <div class="card-title" style="margin-bottom:14px;">Review changes</div>
+    <div class="modal-sub" id="reviewSummary"></div>
+    <div class="change-list" id="reviewList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" value="cancel">Cancel</button>
+      <button class="btn btn-primary" value="save" id="reviewSave" autofocus>Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- CONFIG HISTORY -->
+<dialog id="historyDialog" class="modal wide">
+  <div class="card-title" style="margin-bottom:14px;">Config history</div>
+  <div class="modal-sub">Every save keeps the version it replaced. Restoring one backs up your current settings first, so you can undo it.</div>
+  <div class="change-list" id="historyList"></div>
+  <div class="modal-actions"><button class="btn btn-outline" type="button" onclick="$('historyDialog').close()">Close</button></div>
+</dialog>
+
+<!-- GENERIC NOTICE -->
+<dialog id="noticeDialog" class="modal">
+  <form method="dialog">
+    <div class="card-title" id="noticeTitle" style="margin-bottom:10px;"></div>
+    <div id="noticeBody" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;"></div>
+    <div class="modal-actions"><button class="btn btn-primary" autofocus>OK</button></div>
   </form>
 </dialog>
 
@@ -2061,6 +2106,9 @@
 // ═══════════════════════════════════════════════════════════
 
 let config = {};
+// What buildConfig() returned right after the form was filled from `config`.
+// Comparing against it tells us exactly what the user edited (see computeSaveConfig).
+let formBaseline = null;
 let dirty = false;
 let logType = 'stdout';
 let logInterval = null;
@@ -2265,6 +2313,7 @@ async function loadConfig() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     config = await r.json();
     populateForm(config);
+    formBaseline = buildConfig();
     dirty = false;
     document.getElementById('unsavedBanner').classList.remove('visible');
     setConfigStatus('Config loaded', 'ok');
@@ -2274,27 +2323,72 @@ async function loadConfig() {
   }
 }
 
+// buildConfig() rebuilds the whole config from the form, so anything the form
+// doesn't have a field for (settings added by newer boards or plugins, keys set
+// by hand) would be silently dropped on every save, and boards you never set up
+// would gain default values. Instead, apply only what the user changed (form now
+// vs. form as loaded) on top of the config exactly as it is on disk.
+function deepEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+function applyFormEdits(target, base, cur) {
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  Object.keys(cur).forEach(k => {
+    if (isObj(cur[k]) && isObj(base ? base[k] : undefined)) {
+      // Recurse into a scratch object so a section the user never touched is
+      // not created (as an empty {}) in a config that didn't have it.
+      const sub = isObj(target[k]) ? target[k] : {};
+      applyFormEdits(sub, base[k], cur[k]);
+      if (isObj(target[k]) || Object.keys(sub).length) target[k] = sub;
+    } else if (!base || !deepEqual(base[k], cur[k])) {
+      target[k] = JSON.parse(JSON.stringify(cur[k]));
+    }
+  });
+}
+
+function computeSaveConfig() {
+  const built = buildConfig();
+  const merged = JSON.parse(JSON.stringify(config || {}));
+  if (formBaseline) applyFormEdits(merged, formBaseline, built);
+  else Object.assign(merged, built);  // never loaded: nothing to preserve
+  return {merged, built};
+}
+
+// Saving is three steps: the server checks the config against the schema and
+// lists what would change (preview), the user reviews that list, then it is saved.
+// An invalid config is never written: the scoreboard refuses to start on one.
 async function saveConfig() {
   const btn = document.getElementById('saveBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Saving…';
+  btn.innerHTML = '<span class="spinner"></span> Checking…';
   try {
-    const payload = buildConfig();
-    const r = await fetch('/api/scoreboard/config', {
+    const {merged: payload, built} = computeSaveConfig();
+    const r = await fetch('/api/scoreboard/config/preview', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload)
     });
-    const data = await r.json();
-    if (data.status === 'success') {
-      config = payload;
+    const pv = await r.json();
+    if (!pv.valid) {
+      const where = pv.error && pv.error.path ? ` (${pv.error.path})` : '';
+      showNotice("This config can't be saved yet",
+        `${(pv.error && pv.error.message) || 'It is not valid.'}${where}\n\nNothing was changed. Fix this setting and try again.`);
+      setConfigStatus('Not saved: invalid setting', 'error');
+      return;
+    }
+    if (!pv.changes.length) {
       dirty = false;
       document.getElementById('unsavedBanner').classList.remove('visible');
-      setConfigStatus('Saved ✓ — restart scoreboard to apply changes', 'ok');
-      toast('Config saved! Restart the scoreboard to apply changes.', 'success');
-    } else {
-      throw new Error(data.message || 'Unknown error');
+      setConfigStatus('No changes to save', 'muted');
+      toast('Nothing to save: no settings changed.', 'info');
+      return;
     }
+    if (!(await reviewChanges(pv))) {
+      setConfigStatus('Save cancelled', 'warn');
+      return;
+    }
+    btn.innerHTML = '<span class="spinner"></span> Saving…';
+    await commitConfig(payload);
+    formBaseline = built;
   } catch (e) {
     toast('Save failed: ' + e.message, 'error');
     setConfigStatus('Save failed: ' + e.message, 'error');
@@ -2302,6 +2396,160 @@ async function saveConfig() {
     btn.disabled = false;
     btn.innerHTML = '💾 Save Config';
   }
+}
+
+async function commitConfig(payload) {
+  const r = await fetch('/api/scoreboard/config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const data = await r.json().catch(() => ({}));
+  if (data.status !== 'success') {
+    const where = data.path ? ` (${data.path})` : '';
+    throw new Error((data.message || 'Unknown error') + where);
+  }
+  config = payload;
+  dirty = false;
+  document.getElementById('unsavedBanner').classList.remove('visible');
+  setConfigStatus('Saved ✓ — restart scoreboard to apply changes', 'ok');
+  toast('Config saved! Restart the scoreboard to apply changes.', 'success');
+}
+
+function formatConfigValue(v) {
+  if (v === null || v === undefined) return '—';
+  let text = typeof v === 'string' ? (v === '' ? '(empty)' : v) : JSON.stringify(v);
+  return text.length > 120 ? text.slice(0, 117) + '…' : text;
+}
+
+function reviewChanges(preview) {
+  const list = $('reviewList');
+  list.innerHTML = '';
+  preview.changes.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'change-row';
+    const path = document.createElement('div');
+    path.className = 'change-path';
+    path.textContent = c.path;
+    const vals = document.createElement('div');
+    vals.className = 'change-vals';
+    if (c.change !== 'added') {
+      const old = document.createElement('span');
+      old.className = 'change-old';
+      old.textContent = formatConfigValue(c.old);
+      vals.appendChild(old);
+    }
+    if (c.change === 'changed') {
+      const arrow = document.createElement('span');
+      arrow.className = 'change-tag';
+      arrow.textContent = '→';
+      vals.appendChild(arrow);
+    }
+    if (c.change !== 'removed') {
+      const nu = document.createElement('span');
+      nu.className = 'change-new';
+      nu.textContent = formatConfigValue(c.new);
+      vals.appendChild(nu);
+    }
+    if (c.change !== 'changed') {
+      const tag = document.createElement('span');
+      tag.className = 'change-tag';
+      tag.textContent = c.change;
+      vals.appendChild(tag);
+    }
+    row.appendChild(path);
+    row.appendChild(vals);
+    list.appendChild(row);
+  });
+  const n = preview.changes.length;
+  $('reviewSummary').textContent = preview.truncated
+    ? `More than ${n} settings will change (showing the first ${n}).`
+    : `${n} setting${n === 1 ? '' : 's'} will change. The previous version is kept in History.`;
+  $('reviewSave').textContent = preview.truncated ? 'Save all changes' : `Save ${n} change${n === 1 ? '' : 's'}`;
+  const dlg = $('reviewDialog');
+  dlg.returnValue = 'cancel';
+  return new Promise(resolve => {
+    dlg.addEventListener('close', () => resolve(dlg.returnValue === 'save'), {once: true});
+    dlg.showModal();
+  });
+}
+
+function showNotice(title, body) {
+  $('noticeTitle').textContent = title;
+  const el = $('noticeBody');
+  el.textContent = body;
+  el.style.whiteSpace = 'pre-line';
+  $('noticeDialog').showModal();
+}
+
+// ── Config history (backups) ──────────────────────────────────────────
+
+async function openHistory() {
+  const list = $('historyList');
+  list.textContent = 'Loading…';
+  $('historyDialog').showModal();
+  try {
+    const r = await fetch('/api/scoreboard/config/backups');
+    const d = await r.json();
+    renderHistory(d.backups || []);
+  } catch (e) {
+    list.textContent = 'Could not load the history: ' + e.message;
+  }
+}
+
+function renderHistory(backups) {
+  const list = $('historyList');
+  list.innerHTML = '';
+  if (!backups.length) {
+    list.textContent = 'No earlier versions yet. One is kept each time you save.';
+    return;
+  }
+  backups.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'history-row';
+    const when = document.createElement('div');
+    const t = new Date(b.saved_at);
+    when.textContent = t.toLocaleString([], {dateStyle: 'medium', timeStyle: 'short'});
+    const size = document.createElement('small');
+    size.textContent = 'Saved before a later change · ' + Math.max(1, Math.round(b.size / 1024)) + ' KB';
+    when.appendChild(size);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline btn-sm';
+    btn.textContent = 'Restore';
+    let armed = null;
+    btn.addEventListener('click', async () => {
+      if (!armed) {  // first tap asks for confirmation; it disarms itself after 4s
+        btn.textContent = dirty ? 'Discard edits & restore?' : 'Confirm restore?';
+        btn.classList.add('btn-warning');
+        armed = setTimeout(() => { armed = null; btn.textContent = 'Restore'; btn.classList.remove('btn-warning'); }, 4000);
+        return;
+      }
+      clearTimeout(armed);
+      btn.disabled = true;
+      try {
+        const r = await fetch('/api/scoreboard/config/restore', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({name: b.name})
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.message || 'Restore failed');
+        $('historyDialog').close();
+        await loadConfig();
+        toast('Config restored. Your previous settings are in History.', 'success');
+      } catch (e) {
+        btn.disabled = false;
+        armed = null;
+        btn.textContent = 'Restore';
+        btn.classList.remove('btn-warning');
+        showNotice("Couldn't restore that version", e.message);
+      }
+    });
+    row.appendChild(when);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
 }
 
 function markDirty() {
